@@ -1,10 +1,7 @@
 import { NextResponse } from "next/server";
 import { getPrisma } from "@/lib/prisma";
-import {
-  AUTH_COOKIE_NAME,
-  createAuthToken,
-  verifyPassword,
-} from "@/lib/auth";
+import { AUTH_COOKIE_NAME, createAuthToken } from "@/lib/auth";
+import { verifyPassword } from "@/lib/password";
 
 export async function POST(request: Request) {
   try {
@@ -31,16 +28,17 @@ export async function POST(request: Request) {
       },
     });
 
-    if (
-      !user ||
-      !user.isActive ||
-      !(await verifyPassword(password, user.passwordHash))
-    ) {
-      return NextResponse.json(
-        { error: "Tên đăng nhập hoặc mật khẩu không đúng." },
-        { status: 401 },
-      );
-    }
+  const passwordIsValid =
+    user && user.isActive
+      ? await verifyPassword(password, user.passwordHash)
+      : false;
+
+  if (!user || !user.isActive || !passwordIsValid) {
+    return NextResponse.json(
+      { error: "Tên đăng nhập hoặc mật khẩu không đúng." },
+      { status: 401 },
+    );
+  }
 
     const token = await createAuthToken({
       userId: user.id,

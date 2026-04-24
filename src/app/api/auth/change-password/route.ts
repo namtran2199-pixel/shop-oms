@@ -1,10 +1,7 @@
 import { NextResponse } from "next/server";
 import { getPrisma } from "@/lib/prisma";
-import {
-  getAuthUserFromRequest,
-  hashPassword,
-  verifyPassword,
-} from "@/lib/auth";
+import { getAuthUserFromRequest } from "@/lib/auth";
+import { hashPassword, verifyPassword } from "@/lib/password";
 
 export async function POST(request: Request) {
   const authUser = await getAuthUserFromRequest(request);

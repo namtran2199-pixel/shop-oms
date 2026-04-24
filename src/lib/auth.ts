@@ -30,15 +30,6 @@ async function sha256(input: string) {
   return toBase64Url(new Uint8Array(digest));
 }
 
-export async function hashPassword(password: string) {
-  return sha256(`password:${AUTH_SECRET}:${password}`);
-}
-
-export async function verifyPassword(password: string, passwordHash: string) {
-  const hashedInput = await hashPassword(password);
-  return hashedInput === passwordHash;
-}
-
 export async function createAuthToken(payload: {
   userId: string;
   username: string;

@@ -1,5 +1,5 @@
 import { OrderStatus, PrismaClient, UserRole } from "@prisma/client";
-import { hashPassword } from "../src/lib/auth";
+import { hashPassword } from "../src/lib/password";
 import { buildOrderCode } from "../src/lib/order-code";
 
 const prisma = new PrismaClient();

@@ -151,75 +151,75 @@ export function SettingsClient() {
 
   return (
     <div className="space-y-6">
-      {/* <Card className="p-6">
-          <h2 className="text-xl font-semibold">Thông tin cơ bản</h2>
-          <p className="mt-1 text-sm text-secondary-neutral-gray">
-            Quản lý tên shop, logo và địa chỉ liên hệ.
-          </p>
-          <div className="mt-6 flex flex-col gap-6 md:flex-row">
-            <div className="grid h-28 w-28 shrink-0 place-items-center rounded-2xl bg-surface-container text-action-blue">
-              <Store size={36} />
-            </div>
-            <div className="flex-1 space-y-5">
-              <p className="text-sm text-secondary-neutral-gray">
-                JPG, PNG tối đa 5MB. Khuyến nghị 512x512px.
-              </p>
-              <div className="grid gap-5 md:grid-cols-2">
-                <Field
-                  label="Tên shop"
-                  value={settings.shopName}
-                  onChange={(shopName) => setSettings((current) => ({ ...current, shopName }))}
-                />
-                <Field
-                  label="Số điện thoại"
-                  value={settings.phone}
-                  onChange={(phone) => setSettings((current) => ({ ...current, phone }))}
-                />
-              </div>
-              <Button onClick={saveSettings}>Lưu thay đổi</Button>
-            </div>
+      <Card className="p-6">
+        <h2 className="text-xl font-semibold">Thông tin cơ bản</h2>
+        <p className="mt-1 text-sm text-secondary-neutral-gray">
+          Quản lý tên shop, logo và địa chỉ liên hệ.
+        </p>
+        <div className="mt-6 flex flex-col gap-6 md:flex-row">
+          <div className="grid h-28 w-28 shrink-0 place-items-center rounded-2xl bg-surface-container text-action-blue">
+            <Store size={36} />
           </div>
-        </Card>
+          <div className="flex-1 space-y-5">
+            <p className="text-sm text-secondary-neutral-gray">
+              JPG, PNG tối đa 5MB. Khuyến nghị 512x512px.
+            </p>
+            <div className="grid gap-5 md:grid-cols-2">
+              <Field
+                label="Tên shop"
+                value={settings.shopName}
+                onChange={(shopName) => setSettings((current) => ({ ...current, shopName }))}
+              />
+              <Field
+                label="Số điện thoại"
+                value={settings.phone}
+                onChange={(phone) => setSettings((current) => ({ ...current, phone }))}
+              />
+            </div>
+            <Button onClick={saveSettings}>Lưu thay đổi</Button>
+          </div>
+        </div>
+      </Card>
 
-        <Card className="p-6">
-          <h2 className="text-xl font-semibold">Tùy chọn in ấn</h2>
-          <p className="mt-1 text-sm text-secondary-neutral-gray">
-            Chọn A5 cho máy in nhiệt tiêu chuẩn.
-          </p>
-          <div className="mt-6 grid gap-3 md:grid-cols-3">
-            {["A5", "A4", "K80"].map((paperSize) => (
-              <label
-                key={paperSize}
-                className={`rounded-xl border px-4 py-4 text-sm font-medium ${
-                  settings.paperSize === paperSize
-                    ? "border-action-blue bg-blue-50 text-action-blue"
-                    : "border-soft-border-gray bg-white"
-                }`}
-              >
-                <input
-                  className="mr-2 accent-[var(--action-blue)]"
-                  type="radio"
-                  name="paper"
-                  checked={settings.paperSize === paperSize}
-                  onChange={() => setSettings((current) => ({ ...current, paperSize }))}
-                />
-                {paperSize === "K80" ? "Khổ K80 (máy in bill)" : `Khổ ${paperSize}`}
-              </label>
-            ))}
-          </div>
-          <div className="mt-6 space-y-3">
-            <Toggle
-              label="Hiển thị mã vạch sản phẩm"
-              checked={settings.showBarcode}
-              onChange={(showBarcode) => setSettings((current) => ({ ...current, showBarcode }))}
-            />
-            <Toggle
-              label="In tự động khi xác nhận đơn"
-              checked={settings.autoPrint}
-              onChange={(autoPrint) => setSettings((current) => ({ ...current, autoPrint }))}
-            />
-          </div>
-        </Card> */}
+      <Card className="p-6">
+        <h2 className="text-xl font-semibold">Tùy chọn in ấn</h2>
+        <p className="mt-1 text-sm text-secondary-neutral-gray">
+          Chọn A5 cho máy in nhiệt tiêu chuẩn.
+        </p>
+        <div className="mt-6 grid gap-3 md:grid-cols-3">
+          {["A5", "A4", "K80"].map((paperSize) => (
+            <label
+              key={paperSize}
+              className={`rounded-xl border px-4 py-4 text-sm font-medium ${
+                settings.paperSize === paperSize
+                  ? "border-action-blue bg-blue-50 text-action-blue"
+                  : "border-soft-border-gray bg-white"
+              }`}
+            >
+              <input
+                className="mr-2 accent-[var(--action-blue)]"
+                type="radio"
+                name="paper"
+                checked={settings.paperSize === paperSize}
+                onChange={() => setSettings((current) => ({ ...current, paperSize }))}
+              />
+              {paperSize === "K80" ? "Khổ K80 (máy in bill)" : `Khổ ${paperSize}`}
+            </label>
+          ))}
+        </div>
+        <div className="mt-6 space-y-3">
+          <Toggle
+            label="Hiển thị mã vạch sản phẩm"
+            checked={settings.showBarcode}
+            onChange={(showBarcode) => setSettings((current) => ({ ...current, showBarcode }))}
+          />
+          <Toggle
+            label="In tự động khi xác nhận đơn"
+            checked={settings.autoPrint}
+            onChange={(autoPrint) => setSettings((current) => ({ ...current, autoPrint }))}
+          />
+        </div>
+      </Card>
 
       <Card className="p-6">
         <h2 className="text-xl font-semibold">Bảo mật</h2>

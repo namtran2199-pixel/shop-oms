@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getPrisma } from "@/lib/prisma";
-import { getAuthUserFromRequest, hashPassword } from "@/lib/auth";
+import { getAuthUserFromRequest } from "@/lib/auth";
+import { hashPassword } from "@/lib/password";
 
 function generateTemporaryPassword() {
   return `Tmp${Math.random().toString(36).slice(2, 8)}!`;
