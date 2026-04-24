@@ -1,26 +1,104 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f9f9ff;
+  --foreground: #181c23;
+  --surface: #f9f9ff;
+  --surface-container-lowest: #ffffff;
+  --surface-container-low: #f2f3fd;
+  --surface-container: #ecedf7;
+  --surface-container-high: #e6e8f2;
+  --surface-variant: #e0e2ec;
+  --on-surface: #181c23;
+  --on-surface-variant: #414753;
+  --secondary-neutral-gray: #6e6e73;
+  --soft-border-gray: #d2d2d7;
+  --mid-border-gray: #86868b;
+  --action-blue: #0071e3;
+  --link-blue-standard: #0066cc;
+  --near-black-ink: #1d1d1f;
+  --pure-white: #ffffff;
+  --error: #ba1a1a;
+  --success: #17803d;
+  --warning: #9b5d00;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-surface: var(--surface);
+  --color-surface-container-lowest: var(--surface-container-lowest);
+  --color-surface-container-low: var(--surface-container-low);
+  --color-surface-container: var(--surface-container);
+  --color-surface-container-high: var(--surface-container-high);
+  --color-surface-variant: var(--surface-variant);
+  --color-on-surface: var(--on-surface);
+  --color-on-surface-variant: var(--on-surface-variant);
+  --color-secondary-neutral-gray: var(--secondary-neutral-gray);
+  --color-soft-border-gray: var(--soft-border-gray);
+  --color-mid-border-gray: var(--mid-border-gray);
+  --color-action-blue: var(--action-blue);
+  --color-link-blue-standard: var(--link-blue-standard);
+  --color-near-black-ink: var(--near-black-ink);
+  --color-pure-white: var(--pure-white);
+  --color-error: var(--error);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --font-sans: "Be Vietnam Pro", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono", "Geist Mono Fallback", ui-monospace, monospace;
+  --radius-card: 0.5rem;
+  --radius-control: 9999px;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--background);
 }
 
 body {
+  min-height: 100vh;
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-be-vietnam-pro), ui-sans-serif, system-ui, sans-serif;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button,
+select,
+label:has(input[type="radio"]),
+label:has(input[type="checkbox"]),
+label[for],
+a[href] {
+  cursor: pointer;
+}
+
+button:disabled,
+select:disabled,
+input:disabled,
+textarea:disabled {
+  cursor: not-allowed;
+}
+
+.apple-card {
+  border: 1px solid var(--soft-border-gray);
+  background: var(--surface-container-lowest);
+  border-radius: 0.75rem;
+  box-shadow: 0 12px 30px rgb(24 28 35 / 0.04);
+}
+
+.focus-ring {
+  outline: none;
+}
+
+.focus-ring:focus-visible {
+  box-shadow: 0 0 0 3px rgb(0 113 227 / 0.22);
 }

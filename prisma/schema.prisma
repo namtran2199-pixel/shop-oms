@@ -1,0 +1,97 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum OrderStatus {
+  PAID
+  PROCESSING
+  SHIPPED
+  CANCELLED
+}
+
+enum UserRole {
+  ADMIN
+  MANAGER
+  STAFF
+}
+
+model User {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  displayName  String
+  passwordHash String
+  role         UserRole @default(ADMIN)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Customer {
+  id        String   @id @default(cuid())
+  name      String
+  phone     String   @unique
+  email     String?
+  address   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  orders    Order[]
+}
+
+model Product {
+  id           String      @id @default(cuid())
+  name         String
+  defaultPrice Int
+  note         String?
+  icon         String      @default("Package")
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  orderItems   OrderItem[]
+}
+
+model Order {
+  id              String      @id @default(cuid())
+  code            String      @unique
+  customerId      String
+  status          OrderStatus @default(PROCESSING)
+  subtotal        Int
+  discount        Int         @default(0)
+  shippingFee     Int         @default(0)
+  tax             Int         @default(0)
+  total           Int
+  paymentMethod   String?
+  shippingMethod  String?
+  shippingAddress String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  customer        Customer    @relation(fields: [customerId], references: [id])
+  items           OrderItem[]
+}
+
+model OrderItem {
+  id        String  @id @default(cuid())
+  orderId   String
+  productId String
+  name      String
+  detail    String?
+  sku       String?
+  quantity  Int
+  unitPrice Int
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product   Product @relation(fields: [productId], references: [id])
+}
+
+model StoreSetting {
+  id            String   @id @default("default")
+  shopName      String
+  phone         String
+  paperSize     String   @default("A5")
+  showBarcode   Boolean  @default(true)
+  autoPrint     Boolean  @default(false)
+  shippingUnits String   @default("GHTK,GHN,Viettel Post")
+  updatedAt     DateTime @updatedAt
+}
