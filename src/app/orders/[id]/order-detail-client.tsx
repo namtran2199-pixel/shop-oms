@@ -138,8 +138,8 @@ export function OrderDetailClient({ code }: { code: string }) {
             </div>
             {order.status === "Phiếu tạm" ? (
               <p className="text-sm text-secondary-neutral-gray">
-                Phiếu này chỉ dùng để gom hàng khách đặt trong nhiều thời điểm. Khi chuẩn bị ship,
-                hãy gộp các phiếu tạm cùng khách rồi mới in bill.
+                Phiếu này chưa phải bill cuối. Khi chuẩn bị ship, hãy chốt phiếu này hoặc gộp
+                cùng các phiếu tạm khác của khách rồi mới in bill.
               </p>
             ) : null}
             {order.mergedIntoCode ? (
@@ -159,7 +159,7 @@ export function OrderDetailClient({ code }: { code: string }) {
           </div>
           {order.status === "Phiếu tạm" ? (
             <Link href={`/orders/new?phone=${encodeURIComponent(order.customer.phone)}`}>
-              <Button variant="secondary">Gộp phiếu</Button>
+              <Button variant="secondary">Chốt / gộp phiếu</Button>
             </Link>
           ) : null}
         </div>

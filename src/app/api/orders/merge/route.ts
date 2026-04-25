@@ -11,9 +11,9 @@ export async function POST(request: Request) {
   const orderCodes = Array.from(new Set(body.orderCodes?.filter(Boolean) ?? []));
   const extraChargeIds = Array.from(new Set(body.extraChargeIds?.filter(Boolean) ?? []));
 
-  if (orderCodes.length < 2) {
+  if (orderCodes.length < 1) {
     return NextResponse.json(
-      { error: "Cần chọn ít nhất 2 phiếu tạm để gộp đơn." },
+      { error: "Cần chọn ít nhất 1 phiếu tạm để chốt đơn." },
       { status: 400 },
     );
   }
@@ -33,7 +33,7 @@ export async function POST(request: Request) {
 
   if (tempOrders.length !== orderCodes.length) {
     return NextResponse.json(
-      { error: "Một hoặc nhiều phiếu đã được xử lý, không thể gộp." },
+      { error: "Một hoặc nhiều phiếu đã được xử lý, không thể chốt đơn." },
       { status: 409 },
     );
   }
@@ -147,7 +147,7 @@ export async function POST(request: Request) {
       }
     }
 
-    throw new Error("Không thể tạo mã đơn gộp.");
+    throw new Error("Không thể tạo mã đơn chốt.");
   });
 
   return NextResponse.json({ data: { code: mergedOrder.code } }, { status: 201 });

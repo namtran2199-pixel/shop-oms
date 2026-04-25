@@ -322,8 +322,8 @@ export function CreateOrderClient({ initialPhone = "" }: { initialPhone?: string
 
   async function mergeSelectedOrders() {
     setSubmitError("");
-    if (selectedTempOrders.length < 2) {
-      setSubmitError("Chọn ít nhất 2 phiếu tạm cùng khách để gộp đơn.");
+    if (selectedTempOrders.length < 1) {
+      setSubmitError("Chọn ít nhất 1 phiếu tạm để chốt đơn.");
       return;
     }
 
@@ -339,7 +339,7 @@ export function CreateOrderClient({ initialPhone = "" }: { initialPhone?: string
 
     if (!response.ok) {
       const payload = (await response.json()) as { error?: string };
-      setSubmitError(payload.error ?? "Không thể gộp phiếu tạm.");
+      setSubmitError(payload.error ?? "Không thể chốt phiếu tạm.");
       setIsMerging(false);
       return;
     }
@@ -586,7 +586,7 @@ export function CreateOrderClient({ initialPhone = "" }: { initialPhone?: string
             <div>
               <h2 className="text-xl font-semibold">Phiếu tạm của khách</h2>
               <p className="mt-1 text-sm text-secondary-neutral-gray">
-                Chọn nhiều phiếu cùng SĐT để gộp khi chuẩn bị ship.
+                Chọn 1 phiếu để chốt đơn, hoặc chọn nhiều phiếu cùng SĐT để gộp khi chuẩn bị ship.
               </p>
             </div>
             <Button
@@ -690,7 +690,9 @@ export function CreateOrderClient({ initialPhone = "" }: { initialPhone?: string
                 ) : (
                   <CheckSquare size={17} />
                 )}
-                Gộp {selectedTempOrders.length} phiếu tạm
+                {selectedTempOrders.length <= 1
+                  ? "Chốt phiếu tạm"
+                  : `Gộp ${selectedTempOrders.length} phiếu tạm`}
               </Button>
             </div>
           ) : (
