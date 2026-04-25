@@ -368,6 +368,9 @@ export function CreateOrderClient({ initialPhone = "" }: { initialPhone?: string
             <Field
               label="Số điện thoại"
               value={phone}
+              type="tel"
+              inputMode="numeric"
+              autoComplete="tel"
               onChange={(value) => {
                 const nextPhone = normalizePhoneInput(value);
                 setPhone(nextPhone);
@@ -712,11 +715,17 @@ function Field({
   label,
   value,
   onChange,
+  type = "text",
+  inputMode,
+  autoComplete,
   required = false,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
+  type?: "text" | "tel";
+  inputMode?: "text" | "numeric";
+  autoComplete?: string;
   required?: boolean;
 }) {
   return (
@@ -726,6 +735,10 @@ function Field({
         {required ? <span className="ml-1 text-error">*</span> : null}
       </span>
       <input
+        type={type}
+        inputMode={inputMode}
+        autoComplete={autoComplete}
+        pattern={type === "tel" ? "[0-9]*" : undefined}
         className="focus-ring h-11 w-full rounded-full border border-soft-border-gray bg-white px-4"
         value={value}
         onChange={(event) => onChange(event.target.value)}

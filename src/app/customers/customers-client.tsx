@@ -267,6 +267,9 @@ export function CustomersClient() {
                 label="Số điện thoại"
                 value={customerPhone}
                 onChange={(value) => setCustomerPhone(normalizePhoneInput(value))}
+                type="tel"
+                inputMode="numeric"
+                autoComplete="tel"
                 required
                 placeholder="0901234567"
               />
@@ -385,12 +388,18 @@ function CustomerField({
   value,
   onChange,
   placeholder,
+  type = "text",
+  inputMode,
+  autoComplete,
   required = false,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
+  type?: "text" | "tel";
+  inputMode?: "text" | "numeric";
+  autoComplete?: string;
   required?: boolean;
 }) {
   return (
@@ -400,6 +409,10 @@ function CustomerField({
         {required ? <span className="ml-1 text-error">*</span> : null}
       </span>
       <input
+        type={type}
+        inputMode={inputMode}
+        autoComplete={autoComplete}
+        pattern={type === "tel" ? "[0-9]*" : undefined}
         className="focus-ring h-11 w-full rounded-full border border-soft-border-gray bg-white px-4 text-[15px]"
         value={value}
         placeholder={placeholder}
