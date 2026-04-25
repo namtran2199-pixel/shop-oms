@@ -107,6 +107,7 @@ const statements = [
     "id" TEXT PRIMARY KEY NOT NULL DEFAULT 'default',
     "shopName" TEXT NOT NULL,
     "phone" TEXT NOT NULL,
+    "qrCodeImageUrl" TEXT,
     "paperSize" TEXT NOT NULL DEFAULT 'A5',
     "showBarcode" BOOLEAN NOT NULL DEFAULT true,
     "autoPrint" BOOLEAN NOT NULL DEFAULT false,

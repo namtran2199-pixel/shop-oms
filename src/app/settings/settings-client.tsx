@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import { Plus, Store, Trash2 } from "lucide-react";
 import { Button, Card } from "@/components/ui";
@@ -7,6 +8,7 @@ import { Button, Card } from "@/components/ui";
 type Settings = {
   shopName: string;
   phone: string;
+  qrCodeImageUrl: string | null;
   paperSize: string;
   showBarcode: boolean;
   autoPrint: boolean;
@@ -45,6 +47,7 @@ export function SettingsClient() {
   const [settings, setSettings] = useState<Settings>({
     shopName: "Shop Retail",
     phone: "",
+    qrCodeImageUrl: null,
     paperSize: "A5",
     showBarcode: true,
     autoPrint: false,
@@ -60,6 +63,8 @@ export function SettingsClient() {
   const [passwordError, setPasswordError] = useState("");
   const [roleMessage, setRoleMessage] = useState("");
   const [resetMessage, setResetMessage] = useState("");
+  const [isUploadingQr, setIsUploadingQr] = useState(false);
+  const [qrUploadError, setQrUploadError] = useState("");
 
   useEffect(() => {
     async function loadSettings() {
@@ -101,6 +106,35 @@ export function SettingsClient() {
     });
     const payload = (await response.json()) as { data: Settings };
     setSettings(payload.data);
+  }
+
+  async function uploadQrCode(file: File) {
+    setQrUploadError("");
+    setIsUploadingQr(true);
+
+    const formData = new FormData();
+    formData.set("file", file);
+
+    const response = await fetch("/api/settings/qr-upload", {
+      method: "POST",
+      body: formData,
+    });
+    const payload = (await response.json()) as {
+      data?: { url: string };
+      error?: string;
+    };
+
+    if (!response.ok || !payload.data) {
+      setQrUploadError(payload.error ?? "Không thể upload ảnh QR.");
+      setIsUploadingQr(false);
+      return;
+    }
+
+    setSettings((current) => ({
+      ...current,
+      qrCodeImageUrl: payload.data?.url ?? null,
+    }));
+    setIsUploadingQr(false);
   }
 
   async function changePassword() {
@@ -188,6 +222,61 @@ export function SettingsClient() {
                 value={settings.phone}
                 onChange={(phone) => setSettings((current) => ({ ...current, phone }))}
               />
+            </div>
+            <div className="space-y-3">
+              <div>
+                <p className="mb-2 text-sm font-medium text-on-surface-variant">
+                  Ảnh QR chuyển khoản
+                </p>
+                {settings.qrCodeImageUrl ? (
+                  <div className="mb-3 inline-flex rounded-2xl border border-soft-border-gray bg-white p-3">
+                    <Image
+                      src={settings.qrCodeImageUrl}
+                      alt="QR chuyển khoản"
+                      width={160}
+                      height={160}
+                      className="h-40 w-40 object-contain"
+                      unoptimized
+                    />
+                  </div>
+                ) : (
+                  <div className="mb-3 rounded-xl border border-dashed border-soft-border-gray bg-surface-container-low px-4 py-5 text-sm text-secondary-neutral-gray">
+                    Chưa có ảnh QR.
+                  </div>
+                )}
+                <div className="flex flex-wrap items-center gap-3">
+                  <label className="inline-flex cursor-pointer items-center justify-center rounded-full bg-surface-container px-5 py-2 text-sm font-medium text-near-black-ink transition hover:bg-surface-container-high">
+                    {isUploadingQr ? "Đang upload..." : "Chọn ảnh QR"}
+                    <input
+                      className="sr-only"
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      onChange={(event) => {
+                        const file = event.target.files?.[0];
+                        if (!file) return;
+                        void uploadQrCode(file);
+                        event.target.value = "";
+                      }}
+                    />
+                  </label>
+                  {settings.qrCodeImageUrl ? (
+                    <Button
+                      variant="secondary"
+                      onClick={() =>
+                        setSettings((current) => ({
+                          ...current,
+                          qrCodeImageUrl: null,
+                        }))
+                      }
+                    >
+                      Xóa ảnh QR
+                    </Button>
+                  ) : null}
+                </div>
+                {qrUploadError ? (
+                  <p className="mt-2 text-sm text-error">{qrUploadError}</p>
+                ) : null}
+              </div>
             </div>
             <Button onClick={saveSettings}>Lưu thay đổi</Button>
           </div>

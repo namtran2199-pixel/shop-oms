@@ -182,6 +182,7 @@ async function main() {
     data: {
       shopName: "SILEP Thái Lan - Hàn Quốc",
       phone: "090 100 0000",
+      qrCodeImageUrl: null,
       paperSize: "A5",
       showBarcode: true,
       autoPrint: false,

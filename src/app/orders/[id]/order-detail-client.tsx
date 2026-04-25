@@ -1,5 +1,4 @@
 "use client";
-
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Mail, Phone, Printer } from "lucide-react";
@@ -10,7 +9,7 @@ type OrderDetail = {
   createdAtIso: string;
   createdAtLabel: string;
   receiptLongDateLabel: string;
-  store: { name: string; phone: string };
+  store: { name: string; phone: string; qrCodeImageUrl: string | null };
   customer: { name: string; email: string | null; phone: string; address?: string | null };
   subtotal: string;
   subtotalValue: number;
@@ -80,6 +79,7 @@ export function OrderDetailClient({ code }: { code: string }) {
         customerName: order.customer.name,
         customerPhone: order.customer.phone,
         customerAddress: order.shippingAddress !== "Chưa có địa chỉ" ? order.shippingAddress : null,
+        qrCodeImageUrl: order.store.qrCodeImageUrl,
         createdAt: order.createdAtIso,
         extraCharges: order.extraCharges.map((charge) => ({
           name: charge.name,
@@ -275,7 +275,17 @@ function PrintableReceipt({ order }: { order: OrderDetail }) {
         <span>{formatReceiptMoney(order.totalValue)}</span>
       </p>
       <p className="receipt-qr-label">Quét mã chuyển khoản:</p>
-      <div className="receipt-qr-placeholder">{order.code}</div>
+      {order.store.qrCodeImageUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          className="receipt-qr-image"
+          src={order.store.qrCodeImageUrl}
+          alt="QR chuyển khoản"
+          loading="eager"
+        />
+      ) : (
+        <div className="receipt-qr-placeholder">{order.code}</div>
+      )}
     </section>
   );
 }

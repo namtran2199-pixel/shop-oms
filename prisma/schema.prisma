@@ -115,6 +115,7 @@ model StoreSetting {
   id            String   @id @default("default")
   shopName      String
   phone         String
+  qrCodeImageUrl String?
   paperSize     String   @default("A5")
   showBarcode   Boolean  @default(true)
   autoPrint     Boolean  @default(false)

@@ -260,4 +260,12 @@ textarea:disabled {
     font-size: 10px;
     text-align: center;
   }
+
+  .receipt-qr-image {
+    display: block;
+    width: 34mm;
+    height: 34mm;
+    margin: 0 auto;
+    object-fit: contain;
+  }
 }

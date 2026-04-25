@@ -89,6 +89,7 @@ export async function getOrderDetail(code: string) {
     store: {
       name: storeSettings?.shopName ?? "Shop Retail",
       phone: storeSettings?.phone ?? "",
+      qrCodeImageUrl: storeSettings?.qrCodeImageUrl ?? null,
     },
     customer: order.customer,
     status: formatOrderStatus(order.status),

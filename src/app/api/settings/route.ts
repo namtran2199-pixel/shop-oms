@@ -19,6 +19,7 @@ export async function PUT(request: Request) {
   const body = (await request.json()) as {
     shopName?: string;
     phone?: string;
+    qrCodeImageUrl?: string | null;
     paperSize?: string;
     showBarcode?: boolean;
     autoPrint?: boolean;
@@ -31,6 +32,7 @@ export async function PUT(request: Request) {
     update: {
       shopName: body.shopName?.trim() || "Shop Retail",
       phone: body.phone?.trim() || "",
+      qrCodeImageUrl: body.qrCodeImageUrl?.trim() || null,
       paperSize: body.paperSize || "A5",
       showBarcode: Boolean(body.showBarcode),
       autoPrint: Boolean(body.autoPrint),
@@ -39,6 +41,7 @@ export async function PUT(request: Request) {
       id: "default",
       shopName: body.shopName?.trim() || "Shop Retail",
       phone: body.phone?.trim() || "",
+      qrCodeImageUrl: body.qrCodeImageUrl?.trim() || null,
       paperSize: body.paperSize || "A5",
       showBarcode: Boolean(body.showBarcode),
       autoPrint: Boolean(body.autoPrint),
