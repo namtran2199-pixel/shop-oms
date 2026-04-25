@@ -5,10 +5,12 @@ import { getNextOrderCode } from "@/lib/order-code";
 import { getOrders } from "@/lib/services";
 
 const statusMap: Record<string, OrderStatus> = {
+  "Phiếu tạm": OrderStatus.DRAFT,
   "Đã thanh toán": OrderStatus.PAID,
   "Đang xử lý": OrderStatus.PROCESSING,
   "Đang giao": OrderStatus.SHIPPED,
   "Đã hủy": OrderStatus.CANCELLED,
+  "Đã gộp": OrderStatus.MERGED,
 };
 
 function normalizePhone(value: string) {
@@ -89,6 +91,8 @@ export async function POST(request: Request) {
     phone?: string;
     productId?: string;
     quantity?: number;
+    status?: string;
+    temporary?: boolean;
     items?: Array<{ productId: string; quantity: number }>;
   };
 
@@ -155,6 +159,10 @@ export async function POST(request: Request) {
     };
   });
   const subtotal = orderItems.reduce((sum, item) => sum + item.amount, 0);
+  const status =
+    body.temporary || body.status === "Phiếu tạm"
+      ? OrderStatus.DRAFT
+      : (body.status ? statusMap[body.status] : undefined) ?? OrderStatus.PROCESSING;
   const now = new Date();
   const order = await prisma.$transaction(async (tx) => {
     for (let attempt = 0; attempt < 3; attempt += 1) {
@@ -164,9 +172,10 @@ export async function POST(request: Request) {
           data: {
             code,
             customerId: customer.id,
-            status: statusMap["Đang xử lý"],
+            status,
             subtotal,
             total: subtotal,
+            paymentMethod: status === OrderStatus.DRAFT ? "Phiếu tạm" : "Chưa ghi nhận",
             items: {
               create: orderItems.map(({ product, quantity }) => ({
                 productId: product.id,

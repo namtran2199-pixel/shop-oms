@@ -132,7 +132,11 @@ export function Field({
 
 export function StatusBadge({ status }: { status: string }) {
   const tone =
-    status === "Đã thanh toán"
+    status === "Phiếu tạm"
+      ? "bg-amber-50 text-warning ring-amber-200"
+      : status === "Đã gộp"
+        ? "bg-slate-100 text-on-surface-variant ring-slate-200"
+        : status === "Đã thanh toán"
       ? "bg-emerald-50 text-success ring-emerald-200"
       : status === "Đang xử lý"
         ? "bg-blue-50 text-action-blue ring-blue-200"

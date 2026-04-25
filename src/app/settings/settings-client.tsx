@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Store } from "lucide-react";
+import { Plus, Store, Trash2 } from "lucide-react";
 import { Button, Card } from "@/components/ui";
 
 type Settings = {
@@ -11,6 +11,13 @@ type Settings = {
   showBarcode: boolean;
   autoPrint: boolean;
   shippingUnits: string;
+  extraCharges: ExtraChargeSetting[];
+};
+
+type ExtraChargeSetting = {
+  id?: string;
+  name: string;
+  amount: number;
 };
 
 type AuthUser = {
@@ -42,6 +49,7 @@ export function SettingsClient() {
     showBarcode: true,
     autoPrint: false,
     shippingUnits: "GHTK,GHN,Viettel Post",
+    extraCharges: [],
   });
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
   const [users, setUsers] = useState<UserRow[]>([]);
@@ -57,7 +65,12 @@ export function SettingsClient() {
     async function loadSettings() {
       const response = await fetch("/api/settings");
       const payload = (await response.json()) as { data: Settings | null };
-      if (payload.data) setSettings(payload.data);
+      if (payload.data) {
+        setSettings({
+          ...payload.data,
+          extraCharges: payload.data.extraCharges ?? [],
+        });
+      }
     }
 
     loadSettings();
@@ -218,6 +231,88 @@ export function SettingsClient() {
             checked={settings.autoPrint}
             onChange={(autoPrint) => setSettings((current) => ({ ...current, autoPrint }))}
           />
+        </div>
+      </Card>
+
+      <Card className="p-6">
+        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+          <div>
+            <h2 className="text-xl font-semibold">Khoản thu khác</h2>
+            <p className="mt-1 text-sm text-secondary-neutral-gray">
+              Các khoản này sẽ hiện để chọn khi gộp phiếu/chốt đơn, ví dụ phí ship.
+            </p>
+          </div>
+          <Button
+            variant="secondary"
+            onClick={() =>
+              setSettings((current) => ({
+                ...current,
+                extraCharges: [...current.extraCharges, { name: "", amount: 0 }],
+              }))
+            }
+          >
+            <Plus size={17} />
+            Thêm khoản thu
+          </Button>
+        </div>
+
+        <div className="mt-6 space-y-3">
+          {settings.extraCharges.map((charge, index) => (
+            <div
+              key={charge.id ?? index}
+              className="grid gap-3 rounded-xl bg-surface-container-low p-3 md:grid-cols-[1fr_180px_40px] md:items-center"
+            >
+              <input
+                className="focus-ring h-11 rounded-full border border-soft-border-gray bg-white px-4"
+                placeholder="Tên khoản thu"
+                value={charge.name}
+                onChange={(event) =>
+                  setSettings((current) => ({
+                    ...current,
+                    extraCharges: current.extraCharges.map((item, itemIndex) =>
+                      itemIndex === index ? { ...item, name: event.target.value } : item,
+                    ),
+                  }))
+                }
+              />
+              <input
+                className="focus-ring h-11 rounded-full border border-soft-border-gray bg-white px-4 text-right"
+                placeholder="0"
+                inputMode="numeric"
+                value={charge.amount ? new Intl.NumberFormat("vi-VN").format(charge.amount) : ""}
+                onChange={(event) => {
+                  const amount = Number(event.target.value.replace(/\D/g, ""));
+                  setSettings((current) => ({
+                    ...current,
+                    extraCharges: current.extraCharges.map((item, itemIndex) =>
+                      itemIndex === index ? { ...item, amount } : item,
+                    ),
+                  }));
+                }}
+              />
+              <button
+                className="grid h-10 w-10 place-items-center rounded-full bg-red-50 text-error"
+                onClick={() =>
+                  setSettings((current) => ({
+                    ...current,
+                    extraCharges: current.extraCharges.filter((_, itemIndex) => itemIndex !== index),
+                  }))
+                }
+                aria-label="Xóa khoản thu"
+              >
+                <Trash2 size={17} />
+              </button>
+            </div>
+          ))}
+          {settings.extraCharges.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-soft-border-gray bg-surface-container-low px-4 py-5 text-sm text-secondary-neutral-gray">
+              Chưa có khoản thu khác.
+            </div>
+          ) : null}
+        </div>
+
+        <div className="mt-5">
+          <Button onClick={saveSettings}>Lưu khoản thu</Button>
         </div>
       </Card>
 

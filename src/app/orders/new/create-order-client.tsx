@@ -1,22 +1,19 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  CreditCard,
+  CheckSquare,
   LoaderCircle,
   Minus,
+  PackagePlus,
   Plus,
   Search,
   ShoppingBasket,
   Trash2,
   UserPlus,
-  UsersRound,
-  X,
 } from "lucide-react";
-import { Button, Card } from "@/components/ui";
-
-const CART_STORAGE_KEY = "oms_active_carts";
+import { Button, Card, StatusBadge } from "@/components/ui";
 
 type ProductOption = {
   id: string;
@@ -25,30 +22,12 @@ type ProductOption = {
   note: string;
 };
 
-type CartLine = {
-  id: string;
+type DraftLine = {
   productId: string;
   name: string;
   note: string;
   quantity: number;
-  price: string;
-  lineTotal: string;
   unitPrice: number;
-};
-
-type CartSession = {
-  id: string;
-  customer: {
-    id: string;
-    name: string;
-    phone: string;
-  };
-  totalQuantity: number;
-  itemCount: number;
-  total: number;
-  totalLabel: string;
-  updatedAtLabel: string;
-  items: CartLine[];
 };
 
 type CustomerSuggestion = {
@@ -58,36 +37,39 @@ type CustomerSuggestion = {
   summary: string;
 };
 
+type TempOrder = {
+  id: string;
+  customer: string;
+  phone: string;
+  total: string;
+  status: string;
+  time: string;
+  items: string;
+};
+
+type ExtraCharge = {
+  id: string;
+  name: string;
+  amount: number;
+};
+
 function parseCurrency(value: string) {
   return Number(value.replace(/\D/g, ""));
-}
-
-function normalizePhoneInput(value: string) {
-  const normalized = value.replace(/[^\d+]/g, "");
-  if (normalized.startsWith("+84")) {
-    return "0" + normalized.slice(3, 12);
-  }
-  if (normalized.startsWith("84")) {
-    return "0" + normalized.slice(2, 11);
-  }
-  return normalized.slice(0, 10);
-}
-
-function isValidVietnamPhone(value: string) {
-  return /^0(3|5|7|8|9)\d{8}$/.test(value);
 }
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("vi-VN").format(value) + "đ";
 }
 
-function formatCartTime(date = new Date()) {
-  return new Intl.DateTimeFormat("vi-VN", {
-    hour: "2-digit",
-    minute: "2-digit",
-    day: "2-digit",
-    month: "2-digit",
-  }).format(date);
+function normalizePhoneInput(value: string) {
+  const normalized = value.replace(/[^\d+]/g, "");
+  if (normalized.startsWith("+84")) return `0${normalized.slice(3, 12)}`;
+  if (normalized.startsWith("84")) return `0${normalized.slice(2, 11)}`;
+  return normalized.slice(0, 10);
+}
+
+function isValidVietnamPhone(value: string) {
+  return /^0(3|5|7|8|9)\d{8}$/.test(value);
 }
 
 function normalizeSearchText(value: string) {
@@ -120,103 +102,67 @@ function productMatchesSearch(product: ProductOption, keyword: string) {
   );
 }
 
-function calculateCartTotals(cartItems: CartLine[]) {
-  const totalQuantity = cartItems.reduce((sum, item) => sum + item.quantity, 0);
-  const total = cartItems.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
-
-  return {
-    itemCount: cartItems.length,
-    totalQuantity,
-    total,
-    totalLabel: formatCurrency(total),
-  };
-}
-
-function hydrateCart(cart: CartSession): CartSession {
-  const items = cart.items.map((item) => ({
-    ...item,
-    quantity: Math.max(1, Math.round(item.quantity)),
-    lineTotal: formatCurrency(item.unitPrice * Math.max(1, Math.round(item.quantity))),
-  }));
-
-  return {
-    ...cart,
-    ...calculateCartTotals(items),
-    items,
-  };
-}
-
-function readStoredCarts() {
-  if (typeof window === "undefined") return [];
-
-  try {
-    const rawValue = window.localStorage.getItem(CART_STORAGE_KEY);
-    if (!rawValue) return [];
-    const parsedValue = JSON.parse(rawValue) as CartSession[];
-    if (!Array.isArray(parsedValue)) return [];
-    return parsedValue.map(hydrateCart);
-  } catch {
-    return [];
-  }
-}
-
-export function CreateOrderClient() {
+export function CreateOrderClient({ initialPhone = "" }: { initialPhone?: string }) {
   const router = useRouter();
+  const normalizedInitialPhone = normalizePhoneInput(initialPhone);
   const [products, setProducts] = useState<ProductOption[]>([]);
-  const [carts, setCarts] = useState<CartSession[]>([]);
-  const [activeCartId, setActiveCartId] = useState("");
-  const [phone, setPhone] = useState("");
+  const [phone, setPhone] = useState(normalizedInitialPhone);
   const [customerName, setCustomerName] = useState("");
   const [customerSuggestions, setCustomerSuggestions] = useState<CustomerSuggestion[]>([]);
   const [showCustomerSuggestions, setShowCustomerSuggestions] = useState(false);
   const [isSearchingCustomers, setIsSearchingCustomers] = useState(false);
-  const [phoneTouched, setPhoneTouched] = useState(false);
-  const [submitError, setSubmitError] = useState("");
+  const [phoneTouched, setPhoneTouched] = useState(Boolean(normalizedInitialPhone));
   const [productSearch, setProductSearch] = useState("");
-  const [isLoadingCarts, setIsLoadingCarts] = useState(true);
-  const [isSavingCart, setIsSavingCart] = useState(false);
-  const [isCheckingOut, setIsCheckingOut] = useState(false);
-  const cartsRef = useRef<CartSession[]>([]);
+  const [draftItems, setDraftItems] = useState<DraftLine[]>([]);
+  const [tempOrders, setTempOrders] = useState<TempOrder[]>([]);
+  const [extraCharges, setExtraCharges] = useState<ExtraCharge[]>([]);
+  const [selectedExtraCharges, setSelectedExtraCharges] = useState<string[]>([]);
+  const [selectedTempOrders, setSelectedTempOrders] = useState<string[]>([]);
+  const [isLoadingProducts, setIsLoadingProducts] = useState(true);
+  const [isLoadingTempOrders, setIsLoadingTempOrders] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isMerging, setIsMerging] = useState(false);
+  const [submitError, setSubmitError] = useState("");
 
-  const activeCart = carts.find((cart) => cart.id === activeCartId) ?? null;
-  const cart = activeCart?.items ?? [];
-  const totalQuantity = activeCart?.totalQuantity ?? 0;
-  const subtotal = activeCart?.total ?? 0;
   const normalizedPhone = normalizePhoneInput(phone);
-  const phoneIsValid = normalizedPhone.length === 0 ? false : isValidVietnamPhone(normalizedPhone);
-  const shouldShowNewCustomer =
-    showCustomerSuggestions &&
-    normalizedPhone.length >= 10 &&
-    phoneIsValid &&
-    !isSearchingCustomers &&
-    customerSuggestions.length === 0;
+  const phoneIsValid = normalizedPhone.length > 0 && isValidVietnamPhone(normalizedPhone);
+  const subtotal = draftItems.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
+  const totalQuantity = draftItems.reduce((sum, item) => sum + item.quantity, 0);
+  const selectedExtraChargeTotal = extraCharges
+    .filter((charge) => selectedExtraCharges.includes(charge.id))
+    .reduce((sum, charge) => sum + charge.amount, 0);
+  const keyword = normalizeSearchText(productSearch);
+  const filteredProducts = useMemo(() => {
+    if (!keyword) return products.slice(0, 3);
+    return products.filter((product) => productMatchesSearch(product, keyword)).slice(0, 3);
+  }, [keyword, products]);
 
   useEffect(() => {
     async function loadInitialData() {
-      const productsResponse = await fetch("/api/products");
+      const [productsResponse, settingsResponse] = await Promise.all([
+        fetch("/api/products"),
+        fetch("/api/settings"),
+      ]);
       const productsPayload = (await productsResponse.json()) as { data: ProductOption[] };
-      const storedCarts = readStoredCarts();
-
+      const settingsPayload = (await settingsResponse.json()) as {
+        data: { extraCharges?: ExtraCharge[] } | null;
+      };
       setProducts(productsPayload.data);
-      cartsRef.current = storedCarts;
-      setCarts(storedCarts);
-      if (storedCarts[0]) activateCart(storedCarts[0]);
-      setIsLoadingCarts(false);
+      setExtraCharges(settingsPayload.data?.extraCharges ?? []);
+      setIsLoadingProducts(false);
     }
 
     loadInitialData().catch(() => {
-      setSubmitError("Không thể tải dữ liệu tạo đơn.");
-      setIsLoadingCarts(false);
+      setSubmitError("Không thể tải dữ liệu tạo phiếu.");
+      setIsLoadingProducts(false);
     });
   }, []);
 
   useEffect(() => {
-    const keyword = phone.trim();
+    const keywordValue = phone.trim();
     const controller = new AbortController();
     const timer = window.setTimeout(async () => {
-      if (!showCustomerSuggestions) return;
-
-      if (keyword.length < 2) {
+      if (!showCustomerSuggestions || keywordValue.length < 2) {
         setCustomerSuggestions([]);
         setIsSearchingCustomers(false);
         return;
@@ -224,7 +170,7 @@ export function CreateOrderClient() {
 
       try {
         setIsSearchingCustomers(true);
-        const response = await fetch(`/api/customers?search=${encodeURIComponent(keyword)}`, {
+        const response = await fetch(`/api/customers?search=${encodeURIComponent(keywordValue)}`, {
           signal: controller.signal,
         });
         const payload = (await response.json()) as {
@@ -244,198 +190,114 @@ export function CreateOrderClient() {
     };
   }, [phone, showCustomerSuggestions]);
 
-  const filteredProducts = useMemo(() => {
-    const keyword = normalizeSearchText(productSearch);
-    if (!keyword) return products.slice(0, 3);
-    return products.filter((product) => productMatchesSearch(product, keyword)).slice(0, 3);
-  }, [productSearch, products]);
-  const hasProductSearch = normalizeSearchText(productSearch).length > 0;
+  useEffect(() => {
+    if (!phoneIsValid) return;
+    let active = true;
 
-  function persistCarts(nextCarts: CartSession[]) {
-    window.localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(nextCarts));
+    async function load() {
+      setIsLoadingTempOrders(true);
+      const data = await fetchTempOrders(normalizedPhone);
+      if (!active) return;
+      setTempOrders(data);
+      setSelectedTempOrders((current) =>
+        current.filter((code) => data.some((order) => order.id === code)),
+      );
+      setIsLoadingTempOrders(false);
+    }
+
+    load().catch(() => {
+      if (active) setIsLoadingTempOrders(false);
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [normalizedPhone, phoneIsValid]);
+
+  async function fetchTempOrders(phoneValue: string) {
+    const params = new URLSearchParams({
+      search: phoneValue,
+      status: "Phiếu tạm",
+      page: "1",
+      pageSize: "20",
+    });
+    const response = await fetch(`/api/orders?${params.toString()}`);
+    const payload = (await response.json()) as { data: TempOrder[] };
+    return payload.data;
   }
 
-  function activateCart(nextCart: CartSession) {
-    setActiveCartId(nextCart.id);
-    setPhone(normalizePhoneInput(nextCart.customer.phone));
-    setCustomerName(nextCart.customer.name);
+  function selectCustomer(customer: CustomerSuggestion) {
+    setCustomerName(customer.name);
+    setPhone(normalizePhoneInput(customer.phone));
     setPhoneTouched(true);
     setShowCustomerSuggestions(false);
     setCustomerSuggestions([]);
   }
 
-  function updateCarts(updater: (current: CartSession[]) => CartSession[]) {
-    setCarts((current) => {
-      const nextCarts = updater(current);
-      cartsRef.current = nextCarts;
-      persistCarts(nextCarts);
-      return nextCarts;
-    });
-  }
-
-  function upsertCart(nextCart: CartSession) {
-    updateCarts((current) => {
-      const exists = current.some((cartItem) => cartItem.id === nextCart.id);
-      if (exists) {
-        return current.map((cartItem) => (cartItem.id === nextCart.id ? nextCart : cartItem));
+  function updateDraftItem(product: ProductOption, quantity: number) {
+    const safeQuantity = Math.max(0, Math.round(quantity));
+    setDraftItems((current) => {
+      const existing = current.find((item) => item.productId === product.id);
+      if (safeQuantity <= 0) return current.filter((item) => item.productId !== product.id);
+      if (existing) {
+        return current.map((item) =>
+          item.productId === product.id ? { ...item, quantity: safeQuantity } : item,
+        );
       }
-      return [nextCart, ...current];
+
+      return [
+        ...current,
+        {
+          productId: product.id,
+          name: product.name,
+          note: product.note,
+          quantity: safeQuantity,
+          unitPrice: parseCurrency(product.price),
+        },
+      ];
     });
-    activateCart(nextCart);
   }
 
-  function removeCartLocally(cartId: string) {
-    updateCarts((current) => current.filter((cartItem) => cartItem.id !== cartId));
-    if (activeCartId === cartId) resetCustomerForm();
+  function updateDraftQuantity(productId: string, quantity: number) {
+    const product = products.find((item) => item.id === productId);
+    if (!product) return;
+    updateDraftItem(product, quantity);
   }
 
-  function applyLocalCartQuantity(cartId: string, productId: string, quantity: number) {
-    updateCarts((current) =>
-      current.map((cartItem) => {
-        if (cartItem.id !== cartId) return cartItem;
-
-        const existingItem = cartItem.items.find((item) => item.productId === productId);
-        const product = products.find((item) => item.id === productId);
-        let nextItems = cartItem.items;
-
-        if (quantity <= 0) {
-          nextItems = cartItem.items.filter((item) => item.productId !== productId);
-        } else if (existingItem) {
-          nextItems = cartItem.items.map((item) =>
-            item.productId === productId
-              ? {
-                  ...item,
-                  quantity,
-                  lineTotal: formatCurrency(item.unitPrice * quantity),
-                }
-              : item,
-          );
-        } else if (product) {
-          const unitPrice = parseCurrency(product.price);
-          nextItems = [
-            ...cartItem.items,
-            {
-              id: `item-${product.id}`,
-              productId: product.id,
-              name: product.name,
-              note: product.note,
-              quantity,
-              price: product.price,
-              lineTotal: formatCurrency(unitPrice * quantity),
-              unitPrice,
-            },
-          ];
-        }
-
-        return {
-          ...cartItem,
-          ...calculateCartTotals(nextItems),
-          updatedAtLabel: formatCartTime(),
-          items: nextItems,
-        };
-      }),
-    );
-  }
-
-  function resetCustomerForm() {
-    setActiveCartId("");
-    setPhone("");
-    setCustomerName("");
-    setPhoneTouched(false);
-    setCustomerSuggestions([]);
-    setShowCustomerSuggestions(false);
+  function resetDraft() {
+    setDraftItems([]);
+    setProductSearch("");
     setSubmitError("");
   }
 
-  function openCustomerCart(name = customerName, rawPhone = phone, customerId?: string) {
+  async function saveTempOrder() {
     setSubmitError("");
-    const nextPhone = normalizePhoneInput(rawPhone);
 
-    if (!isValidVietnamPhone(nextPhone)) {
+    if (!customerName.trim()) {
+      setSubmitError("Họ và tên khách hàng là bắt buộc.");
+      return;
+    }
+
+    if (!phoneIsValid) {
       setPhoneTouched(true);
       setSubmitError("Số điện thoại phải đúng định dạng di động Việt Nam.");
       return;
     }
 
-    if (!name.trim()) {
-      setSubmitError("Họ và tên là bắt buộc để mở giỏ.");
+    if (draftItems.length === 0) {
+      setSubmitError("Chưa có sản phẩm để lưu phiếu tạm.");
       return;
     }
 
-    setIsSavingCart(true);
-    const cartId = `cart-${nextPhone}`;
-    const existingCart = cartsRef.current.find((cartItem) => cartItem.id === cartId);
-    const nextCart: CartSession = hydrateCart({
-      id: cartId,
-      customer: {
-        id: customerId ?? existingCart?.customer.id ?? `local-${nextPhone}`,
-        name: name.trim(),
-        phone: nextPhone,
-      },
-      itemCount: existingCart?.itemCount ?? 0,
-      totalQuantity: existingCart?.totalQuantity ?? 0,
-      total: existingCart?.total ?? 0,
-      totalLabel: existingCart?.totalLabel ?? "0đ",
-      updatedAtLabel: formatCartTime(),
-      items: existingCart?.items ?? [],
-    });
-
-    upsertCart(nextCart);
-    setIsSavingCart(false);
-  }
-
-  function updateCartItem(productId: string, quantity?: number, delta?: number) {
-    const currentCart = cartsRef.current.find((cartItem) => cartItem.id === activeCartId) ?? activeCart;
-    if (!currentCart) {
-      setSubmitError("Chọn hoặc tạo khách hàng trước khi thêm sản phẩm.");
-      return;
-    }
-
-    setSubmitError("");
-    const currentQuantity =
-      currentCart.items.find((item) => item.productId === productId)?.quantity ?? 0;
-    const nextQuantity =
-      typeof quantity === "number" ? quantity : currentQuantity + (delta ?? 1);
-    const safeQuantity = Math.max(1, Math.round(nextQuantity));
-
-    applyLocalCartQuantity(currentCart.id, productId, safeQuantity);
-  }
-
-  function removeCartItem(productId: string) {
-    const currentCart = cartsRef.current.find((cartItem) => cartItem.id === activeCartId) ?? activeCart;
-    if (!currentCart) return;
-
-    applyLocalCartQuantity(currentCart.id, productId, 0);
-  }
-
-  function deleteCart(cartId: string) {
-    const confirmed = window.confirm("Xóa giỏ đang treo của khách này?");
-    if (!confirmed) return;
-
-    removeCartLocally(cartId);
-  }
-
-  async function checkoutCart() {
-    setSubmitError("");
-    const currentCart = cartsRef.current.find((cartItem) => cartItem.id === activeCartId) ?? activeCart;
-    if (!currentCart) {
-      setSubmitError("Chọn khách hàng cần thanh toán.");
-      return;
-    }
-
-    if (currentCart.items.length === 0) {
-      setSubmitError("Giỏ hàng chưa có sản phẩm.");
-      return;
-    }
-
-    setIsCheckingOut(true);
-    const response = await fetch("/api/carts/checkout", {
+    setIsSaving(true);
+    const response = await fetch("/api/orders", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        customerName: currentCart.customer.name,
-        phone: currentCart.customer.phone,
-        items: currentCart.items.map((item) => ({
+        customerName: customerName.trim(),
+        phone: normalizedPhone,
+        temporary: true,
+        items: draftItems.map((item) => ({
           productId: item.productId,
           quantity: item.quantity,
         })),
@@ -444,132 +306,160 @@ export function CreateOrderClient() {
 
     if (!response.ok) {
       const payload = (await response.json()) as { error?: string };
-      setSubmitError(payload.error ?? "Không thể thanh toán giỏ hàng.");
-      setIsCheckingOut(false);
+      setSubmitError(payload.error ?? "Không thể lưu phiếu tạm.");
+      setIsSaving(false);
+      return;
+    }
+
+    resetDraft();
+    const nextTempOrders = await fetchTempOrders(normalizedPhone);
+    setTempOrders(nextTempOrders);
+    setSelectedTempOrders((current) =>
+      current.filter((code) => nextTempOrders.some((order) => order.id === code)),
+    );
+    setIsSaving(false);
+  }
+
+  async function mergeSelectedOrders() {
+    setSubmitError("");
+    if (selectedTempOrders.length < 2) {
+      setSubmitError("Chọn ít nhất 2 phiếu tạm cùng khách để gộp đơn.");
+      return;
+    }
+
+    setIsMerging(true);
+    const response = await fetch("/api/orders/merge", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        orderCodes: selectedTempOrders,
+        extraChargeIds: selectedExtraCharges,
+      }),
+    });
+
+    if (!response.ok) {
+      const payload = (await response.json()) as { error?: string };
+      setSubmitError(payload.error ?? "Không thể gộp phiếu tạm.");
+      setIsMerging(false);
       return;
     }
 
     const payload = (await response.json()) as { data: { code: string } };
-    removeCartLocally(currentCart.id);
     router.push(`/orders/${payload.data.code}`);
   }
 
+  const shouldShowNewCustomer =
+    showCustomerSuggestions &&
+    phoneIsValid &&
+    !isSearchingCustomers &&
+    customerSuggestions.length === 0;
+
   return (
-    <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_390px]">
+    <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_400px]">
       <div className="space-y-6">
-        <Card className="p-4">
-          <div className="mb-3 flex items-center justify-between gap-3">
-            <div className="min-w-0">
-              <h2 className="text-base font-semibold">Giỏ treo</h2>
-              <p className="text-xs text-secondary-neutral-gray">
-                {carts.length} khách đang phục vụ
-              </p>
-            </div>
-            <Button variant="secondary" onClick={resetCustomerForm} className="h-9 shrink-0 px-4">
-              <UserPlus size={17} />
-              Khách mới
-            </Button>
+        <Card className="p-6">
+          <div className="mb-5">
+            <h2 className="text-xl font-semibold">Thông tin khách hàng</h2>
+            <p className="mt-1 text-sm text-secondary-neutral-gray">
+              Gõ tên và số điện thoại để lưu phiếu tạm cho khách.
+            </p>
+          </div>
+          <div className="grid gap-5 md:grid-cols-2">
+            <Field
+              label="Số điện thoại"
+              value={phone}
+              onChange={(value) => {
+                const nextPhone = normalizePhoneInput(value);
+                setPhone(nextPhone);
+                setPhoneTouched(true);
+                setShowCustomerSuggestions(true);
+                if (!isValidVietnamPhone(nextPhone)) {
+                  setTempOrders([]);
+                  setSelectedTempOrders([]);
+                }
+              }}
+              required
+            />
+            <Field label="Họ và tên" value={customerName} onChange={setCustomerName} required />
           </div>
 
-          {isLoadingCarts ? (
-            <div className="inline-flex items-center gap-2 text-sm text-secondary-neutral-gray">
-              <LoaderCircle size={16} className="animate-spin" />
-              Đang tải giỏ hàng...
-            </div>
-          ) : carts.length > 0 ? (
-            <div className="flex gap-2 overflow-x-auto pb-1">
-              {carts.map((cartItem) => {
-                const selected = cartItem.id === activeCartId;
-                return (
+          <div className="mt-4 space-y-2">
+            {phoneTouched && phone.length > 0 && !phoneIsValid ? (
+              <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-error">
+                Số điện thoại chưa hợp lệ. Chỉ chấp nhận số di động Việt Nam gồm 10 chữ số.
+              </div>
+            ) : null}
+            {isSearchingCustomers ? (
+              <div className="inline-flex items-center gap-2 text-sm text-secondary-neutral-gray">
+                <LoaderCircle size={16} className="animate-spin" />
+                Đang tìm khách hàng...
+              </div>
+            ) : null}
+            {showCustomerSuggestions && customerSuggestions.length > 0 ? (
+              <div className="grid gap-2 md:grid-cols-2">
+                {customerSuggestions.map((customer) => (
                   <button
-                    key={cartItem.id}
-                    className={`relative min-w-[176px] rounded-xl border px-3 py-2.5 pr-8 text-left transition ${
-                      selected
-                        ? "border-action-blue bg-blue-50"
-                        : "border-soft-border-gray bg-white hover:bg-surface-container-low"
-                    }`}
-                    onClick={() => activateCart(cartItem)}
+                    key={customer.id}
+                    className="rounded-xl bg-surface-container-low px-4 py-3 text-left transition hover:bg-surface-container"
+                    onClick={() => selectCustomer(customer)}
                   >
-                    <span className="flex items-start justify-between gap-2">
-                      <span className="min-w-0">
-                        <span className="block truncate text-sm font-semibold">
-                          {cartItem.customer.name}
-                        </span>
-                        <span className="block truncate text-xs text-secondary-neutral-gray">
-                          {cartItem.customer.phone}
-                        </span>
-                      </span>
-                      <span className="rounded-full bg-surface-container px-2 py-0.5 text-xs font-semibold">
-                        {cartItem.totalQuantity}
-                      </span>
-                    </span>
-                    <span className="mt-2 block text-sm font-semibold text-action-blue">
-                      {cartItem.totalLabel}
-                    </span>
-                    <span
-                      role="button"
-                      tabIndex={0}
-                      className="absolute right-2 top-2 grid h-6 w-6 place-items-center rounded-full text-secondary-neutral-gray transition hover:bg-white hover:text-error"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        deleteCart(cartItem.id);
-                      }}
-                      onKeyDown={(event) => {
-                        if (event.key !== "Enter" && event.key !== " ") return;
-                        event.preventDefault();
-                        event.stopPropagation();
-                        deleteCart(cartItem.id);
-                      }}
-                      aria-label={`Xóa giỏ của ${cartItem.customer.name}`}
-                    >
-                      <X size={14} />
+                    <span className="block font-medium">{customer.name}</span>
+                    <span className="text-sm text-secondary-neutral-gray">
+                      {customer.phone} • {customer.summary}
                     </span>
                   </button>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="rounded-xl border border-dashed border-soft-border-gray bg-surface-container-low px-4 py-5 text-sm text-secondary-neutral-gray">
-              Chưa có giỏ treo. Nhập số điện thoại và tên khách để mở giỏ đầu tiên.
-            </div>
-          )}
+                ))}
+              </div>
+            ) : null}
+            {shouldShowNewCustomer ? (
+              <div className="rounded-xl border border-dashed border-action-blue/30 bg-blue-50 px-4 py-3 text-sm">
+                <span className="font-medium text-action-blue">
+                  Không tìm thấy khách hàng hiện có.
+                </span>
+                <span className="mt-1 block text-on-surface-variant">
+                  Khi lưu phiếu tạm, hệ thống sẽ tạo khách mới với số {normalizedPhone}.
+                </span>
+              </div>
+            ) : null}
+          </div>
         </Card>
 
         <Card className="p-6">
           <div className="mb-5">
-            <div className="relative">
+            <h2 className="text-xl font-semibold">Sản phẩm đang đặt</h2>
+            <div className="relative mt-4">
               <Search
                 className="absolute left-3 top-1/2 -translate-y-1/2 text-secondary-neutral-gray"
                 size={20}
               />
               <input
                 className="focus-ring h-11 w-full rounded-full border border-soft-border-gray bg-white pl-10 pr-4"
-                placeholder={
-                  activeCart
-                    ? `Thêm sản phẩm cho ${activeCart.customer.name}`
-                    : "Chọn khách trước, sau đó tìm sản phẩm"
-                }
+                placeholder="Tìm sản phẩm để thêm vào phiếu"
                 value={productSearch}
                 onChange={(event) => setProductSearch(event.target.value)}
               />
             </div>
             <div className="mt-3 text-sm text-secondary-neutral-gray">
-              {hasProductSearch
+              {keyword
                 ? filteredProducts.length > 0
                   ? `Tìm thấy ${filteredProducts.length} sản phẩm phù hợp`
                   : `Không tìm thấy sản phẩm cho "${productSearch.trim()}"`
-                : "Nhập tên sản phẩm, không dấu hoặc chữ cái đầu để tìm nhanh."}
+                : "Search hỗ trợ không dấu và chữ cái đầu, ví dụ ats cho áo thun size."}
             </div>
           </div>
 
-          {filteredProducts.length > 0 ? (
+          {isLoadingProducts ? (
+            <div className="inline-flex items-center gap-2 text-sm text-secondary-neutral-gray">
+              <LoaderCircle size={16} className="animate-spin" />
+              Đang tải sản phẩm...
+            </div>
+          ) : filteredProducts.length > 0 ? (
             <div className="mb-6 grid gap-3">
               {filteredProducts.map((product) => (
                 <button
                   key={product.id}
-                  className="flex w-full items-center justify-between rounded-xl bg-surface-container-low px-4 py-3 text-left transition hover:bg-surface-container disabled:cursor-not-allowed disabled:opacity-60"
-                  disabled={!activeCart}
-                  onClick={() => updateCartItem(product.id, undefined, 1)}
+                  className="flex w-full items-center justify-between rounded-xl bg-surface-container-low px-4 py-3 text-left transition hover:bg-surface-container"
+                  onClick={() => updateDraftItem(product, 1)}
                 >
                   <span className="min-w-0">
                     <span className="block font-medium">{product.name}</span>
@@ -585,52 +475,45 @@ export function CreateOrderClient() {
             <div className="mb-6 rounded-xl border border-dashed border-soft-border-gray bg-surface-container-low px-6 py-10 text-center">
               <Search className="mx-auto mb-3 text-secondary-neutral-gray" size={20} />
               <p className="font-medium text-on-surface">Không có sản phẩm phù hợp</p>
-              <p className="mt-2 text-sm text-secondary-neutral-gray">
-                Thử tìm theo tên khác, không dấu hoặc chữ cái đầu.
-              </p>
             </div>
           )}
 
-          {cart.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-soft-border-gray bg-surface-container-low px-6 py-16 text-center">
+          {draftItems.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-soft-border-gray bg-surface-container-low px-6 py-14 text-center">
               <ShoppingBasket className="mx-auto mb-4 text-secondary-neutral-gray" />
-              <h3 className="font-semibold text-on-surface">
-                {activeCart ? "Giỏ này chưa có sản phẩm" : "Chưa chọn khách hàng"}
-              </h3>
+              <h3 className="font-semibold text-on-surface">Phiếu tạm chưa có sản phẩm</h3>
               <p className="mt-2 text-sm text-secondary-neutral-gray">
-                {activeCart
-                  ? "Bấm vào sản phẩm phía trên để thêm vào giỏ của khách."
-                  : "Mở giỏ cho khách trước để bắt đầu thêm sản phẩm."}
+                Chọn sản phẩm phía trên để thêm vào phiếu đang nhập.
               </p>
             </div>
           ) : (
             <div className="overflow-hidden rounded-xl border border-soft-border-gray">
               <div className="flex items-center justify-between bg-surface-container-low px-4 py-3 text-sm font-semibold">
-                <span>Giỏ hàng của {activeCart?.customer.name}</span>
-                {activeCart ? (
-                  <button
-                    className="rounded-full p-1 text-secondary-neutral-gray transition hover:bg-white hover:text-error"
-                    onClick={() => deleteCart(activeCart.id)}
-                    aria-label="Xóa giỏ"
-                  >
-                    <X size={16} />
-                  </button>
-                ) : null}
+                <span>Phiếu đang nhập</span>
+                <button
+                  className="rounded-full p-1 text-secondary-neutral-gray transition hover:bg-white hover:text-error"
+                  onClick={resetDraft}
+                  aria-label="Xóa sản phẩm đang nhập"
+                >
+                  <Trash2 size={16} />
+                </button>
               </div>
               <div className="divide-y divide-soft-border-gray">
-                {cart.map((item) => (
+                {draftItems.map((item) => (
                   <div
                     key={item.productId}
                     className="grid gap-4 px-4 py-4 md:grid-cols-[1fr_120px_120px_36px] md:items-center"
                   >
                     <div className="min-w-0">
                       <p className="font-medium">{item.name}</p>
-                      <p className="text-sm text-secondary-neutral-gray">{item.price}</p>
+                      <p className="text-sm text-secondary-neutral-gray">
+                        {formatCurrency(item.unitPrice)}
+                      </p>
                     </div>
                     <div className="inline-flex h-9 w-fit items-center rounded-full bg-surface-container">
                       <button
                         className="grid h-9 w-9 place-items-center"
-                        onClick={() => updateCartItem(item.productId, item.quantity - 1)}
+                        onClick={() => updateDraftQuantity(item.productId, item.quantity - 1)}
                         aria-label={`Giảm số lượng ${item.name}`}
                       >
                         <Minus size={15} />
@@ -638,31 +521,28 @@ export function CreateOrderClient() {
                       <input
                         className="h-9 w-11 bg-transparent text-center text-sm font-semibold outline-none"
                         inputMode="numeric"
-                        min={1}
                         value={item.quantity}
                         onChange={(event) => {
                           const digits = event.target.value.replace(/\D/g, "");
                           if (!digits) return;
-                          const nextQuantity = Math.max(1, Number(digits));
-                          updateCartItem(item.productId, nextQuantity);
-                        }}
-                        onBlur={() => {
-                          if (item.quantity < 1) updateCartItem(item.productId, 1);
+                          updateDraftQuantity(item.productId, Math.max(1, Number(digits)));
                         }}
                         aria-label={`Số lượng ${item.name}`}
                       />
                       <button
                         className="grid h-9 w-9 place-items-center"
-                        onClick={() => updateCartItem(item.productId, item.quantity + 1)}
+                        onClick={() => updateDraftQuantity(item.productId, item.quantity + 1)}
                         aria-label={`Tăng số lượng ${item.name}`}
                       >
                         <Plus size={15} />
                       </button>
                     </div>
-                    <p className="font-semibold">{item.lineTotal}</p>
+                    <p className="font-semibold">
+                      {formatCurrency(item.unitPrice * item.quantity)}
+                    </p>
                     <button
                       className="grid h-9 w-9 place-items-center rounded-full bg-red-50 text-error"
-                      onClick={() => removeCartItem(item.productId)}
+                      onClick={() => updateDraftQuantity(item.productId, 0)}
                     >
                       <Trash2 size={16} />
                     </button>
@@ -671,127 +551,155 @@ export function CreateOrderClient() {
               </div>
             </div>
           )}
-          <div className="mt-5 flex justify-end text-sm font-medium">
-            Tổng số lượng: <span className="ml-1 text-action-blue">{totalQuantity}</span>
-          </div>
         </Card>
       </div>
 
       <div className="space-y-6">
         <Card className="p-6">
-          <h2 className="mb-5 text-xl font-semibold">Thông tin khách hàng</h2>
-          {activeCart ? (
-            <div className="mb-5 flex items-center justify-between gap-3 rounded-xl bg-blue-50 px-4 py-3 text-sm">
-              <span>
-                <span className="font-medium text-action-blue">Đang mở giỏ</span>
-                <span className="mt-1 block text-on-surface-variant">
-                  {activeCart.customer.name} • {activeCart.customer.phone}
-                </span>
-              </span>
-              <button
-                className="shrink-0 rounded-full bg-white px-3 py-1.5 text-sm font-medium text-error transition hover:bg-red-50"
-                onClick={() => deleteCart(activeCart.id)}
-              >
-                Xóa giỏ
-              </button>
+          <h2 className="mb-5 text-xl font-semibold">Tóm tắt phiếu đang nhập</h2>
+          <div className="space-y-4 text-sm">
+            <Row label="Khách hàng" value={customerName || "Chưa nhập"} />
+            <Row label="Số điện thoại" value={normalizedPhone || "Chưa nhập"} />
+            <Row label="Số sản phẩm" value={`${draftItems.length}`} />
+            <Row label="Tổng số lượng" value={`${totalQuantity}`} />
+            <Row label="Tổng tiền hàng" value={formatCurrency(subtotal)} strong />
+          </div>
+          <div className="mt-8">
+            <Button onClick={() => void saveTempOrder()} className="w-full">
+              {isSaving ? (
+                <LoaderCircle size={17} className="animate-spin" />
+              ) : (
+                <PackagePlus size={17} />
+              )}
+              Lưu phiếu tạm
+            </Button>
+          </div>
+          {submitError ? (
+            <div className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-error">
+              {submitError}
             </div>
           ) : null}
-          <div className="grid gap-5">
-            <Field
-              label="Số điện thoại"
-              value={phone}
-              onChange={(value) => {
-                setPhone(normalizePhoneInput(value));
-                setPhoneTouched(true);
-                setShowCustomerSuggestions(true);
-              }}
-              required
-            />
-            <div className="-mt-3 space-y-2">
-              {phoneTouched && phone.length > 0 && !phoneIsValid ? (
-                <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-error">
-                  Số điện thoại chưa hợp lệ. Chỉ chấp nhận số di động Việt Nam gồm 10 chữ số.
-                </div>
-              ) : null}
-              {phone.length < 2 ? (
-                <div className="text-sm text-secondary-neutral-gray">
-                  Nhập ít nhất 2 số để tìm khách hàng hiện có.
-                </div>
-              ) : null}
-              {isSearchingCustomers ? (
-                <div className="inline-flex items-center gap-2 text-sm text-secondary-neutral-gray">
-                  <LoaderCircle size={16} className="animate-spin" />
-                  Đang tìm khách hàng...
-                </div>
-              ) : null}
-            </div>
-            {showCustomerSuggestions && customerSuggestions.length > 0 ? (
-              <div className="-mt-3 grid gap-2">
-                {customerSuggestions.map((customer) => (
-                  <button
-                    key={customer.id}
-                    className="rounded-xl bg-surface-container-low px-4 py-3 text-left transition hover:bg-surface-container"
-                    onClick={() => openCustomerCart(customer.name, customer.phone, customer.id)}
-                  >
-                    <span className="block font-medium">{customer.name}</span>
-                    <span className="text-sm text-secondary-neutral-gray">
-                      {customer.phone} • {customer.summary}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            ) : null}
-            {shouldShowNewCustomer ? (
-              <div className="-mt-3 rounded-xl border border-dashed border-action-blue/30 bg-blue-50 px-4 py-3 text-sm">
-                <span className="font-medium text-action-blue">
-                  Không tìm thấy khách hàng hiện có.
-                </span>
-                <span className="mt-1 block text-on-surface-variant">
-                  Có thể mở giỏ mới cho số điện thoại {normalizedPhone}.
-                </span>
-              </div>
-            ) : null}
-            <Field label="Họ và tên" value={customerName} onChange={setCustomerName} required />
-            <Button
-              variant="secondary"
-              onClick={() => openCustomerCart()}
-              className="w-full"
-            >
-              {isSavingCart ? (
-                <LoaderCircle size={17} className="animate-spin" />
-              ) : (
-                <UsersRound size={17} />
-              )}
-              {activeCart ? "Cập nhật / mở giỏ" : "Mở giỏ cho khách"}
-            </Button>
-            {submitError ? (
-              <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-error">
-                {submitError}
-              </div>
-            ) : null}
-          </div>
         </Card>
 
-        <Card className="h-fit p-6">
-          <h2 className="mb-6 text-2xl font-semibold">Tóm tắt thanh toán</h2>
-          <div className="space-y-4 text-sm">
-            <Row label="Khách hàng" value={activeCart?.customer.name ?? "Chưa chọn"} />
-            <Row label="Số sản phẩm" value={`${cart.length}`} />
-            <Row label="Tổng số lượng" value={`${totalQuantity}`} />
-            <Row label="Tổng tiền hàng" value={formatCurrency(subtotal)} />
-          </div>
-          <div className="my-6 border-t border-soft-border-gray" />
-          <Row label="Khách cần trả" value={formatCurrency(subtotal)} strong />
-          <div className="mt-8">
-            <Button onClick={() => void checkoutCart()} className="w-full">
-              {isCheckingOut ? (
-                <LoaderCircle size={17} className="animate-spin" />
-              ) : (
-                <CreditCard size={17} />
-              )}
-              Thanh toán
+        <Card className="p-6">
+          <div className="mb-5 flex items-start justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-semibold">Phiếu tạm của khách</h2>
+              <p className="mt-1 text-sm text-secondary-neutral-gray">
+                Chọn nhiều phiếu cùng SĐT để gộp khi chuẩn bị ship.
+              </p>
+            </div>
+            <Button
+              variant="secondary"
+              className="h-9 shrink-0 px-4"
+              onClick={() => {
+                setPhone("");
+                setCustomerName("");
+                setPhoneTouched(false);
+                setSelectedTempOrders([]);
+                setTempOrders([]);
+              }}
+            >
+              <UserPlus size={16} />
+              Khách mới
             </Button>
           </div>
+
+          {isLoadingTempOrders ? (
+            <div className="inline-flex items-center gap-2 text-sm text-secondary-neutral-gray">
+              <LoaderCircle size={16} className="animate-spin" />
+              Đang tải phiếu tạm...
+            </div>
+          ) : tempOrders.length > 0 ? (
+            <div className="space-y-3">
+              {tempOrders.map((order) => {
+                const checked = selectedTempOrders.includes(order.id);
+                return (
+                  <button
+                    key={order.id}
+                    className={`w-full rounded-xl border px-4 py-3 text-left transition ${
+                      checked
+                        ? "border-action-blue bg-blue-50"
+                        : "border-soft-border-gray bg-white hover:bg-surface-container-low"
+                    }`}
+                    onClick={() =>
+                      setSelectedTempOrders((current) =>
+                        current.includes(order.id)
+                          ? current.filter((code) => code !== order.id)
+                          : [...current, order.id],
+                      )
+                    }
+                  >
+                    <span className="mb-2 flex items-center justify-between gap-3">
+                      <span className="font-mono text-sm">{order.id}</span>
+                      <StatusBadge status={order.status} />
+                    </span>
+                    <span className="block font-semibold">{order.total}</span>
+                    <span className="mt-1 block text-sm text-secondary-neutral-gray">
+                      {order.time} • {order.items || "Chưa có sản phẩm"}
+                    </span>
+                  </button>
+                );
+	              })}
+              {extraCharges.length > 0 ? (
+                <div className="rounded-xl bg-surface-container-low p-4">
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <p className="font-semibold">Thu khác</p>
+                    <span className="text-sm font-semibold text-action-blue">
+                      {formatCurrency(selectedExtraChargeTotal)}
+                    </span>
+                  </div>
+                  <div className="space-y-2">
+                    {extraCharges.map((charge) => {
+                      const checked = selectedExtraCharges.includes(charge.id);
+                      return (
+                        <label
+                          key={charge.id}
+                          className="flex items-center justify-between gap-3 rounded-lg bg-white px-3 py-2 text-sm"
+                        >
+                          <span className="flex min-w-0 items-center gap-3">
+                            <input
+                              className="h-4 w-4 accent-[var(--action-blue)]"
+                              type="checkbox"
+                              checked={checked}
+                              onChange={(event) =>
+                                setSelectedExtraCharges((current) =>
+                                  event.target.checked
+                                    ? [...current, charge.id]
+                                    : current.filter((id) => id !== charge.id),
+                                )
+                              }
+                            />
+                            <span className="min-w-0 truncate">{charge.name}</span>
+                          </span>
+                          <span className="shrink-0 font-semibold">
+                            {formatCurrency(charge.amount)}
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : null}
+              <Button
+                className="mt-2 w-full"
+                onClick={() => void mergeSelectedOrders()}
+              >
+                {isMerging ? (
+                  <LoaderCircle size={17} className="animate-spin" />
+                ) : (
+                  <CheckSquare size={17} />
+                )}
+                Gộp {selectedTempOrders.length} phiếu tạm
+              </Button>
+            </div>
+          ) : (
+            <div className="rounded-xl border border-dashed border-soft-border-gray bg-surface-container-low px-5 py-8 text-sm text-secondary-neutral-gray">
+              {phoneIsValid
+                ? "Khách này chưa có phiếu tạm nào."
+                : "Nhập hoặc chọn khách để xem các phiếu tạm đang mở."}
+            </div>
+          )}
         </Card>
       </div>
     </div>

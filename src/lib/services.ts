@@ -24,6 +24,14 @@ export async function getOrders() {
     include: {
       customer: true,
       items: true,
+      mergedOrders: {
+        select: { code: true },
+        orderBy: { createdAt: "asc" },
+      },
+      mergedInto: {
+        select: { code: true },
+      },
+      extraCharges: true,
     },
     orderBy: { createdAt: "desc" },
   });
@@ -34,35 +42,73 @@ export async function getOrders() {
     phone: order.customer.phone,
     total: formatCurrency(order.total),
     status: formatOrderStatus(order.status),
+    statusCode: order.status,
     time: formatOrderTime(order.createdAt),
     items: order.items.map((item) => item.name).join(", "),
+    sourceCodes: order.mergedOrders.map((mergedOrder) => mergedOrder.code),
+    mergedIntoCode: order.mergedInto?.code ?? null,
   }));
 }
 
 export async function getOrderDetail(code: string) {
   noStore();
   const prisma = getPrisma();
-  const order = await prisma.order.findUnique({
-    where: { code },
+  const [order, storeSettings] = await Promise.all([
+    prisma.order.findUnique({
+      where: { code },
     include: {
       customer: true,
-      items: {
-        include: { product: true },
+      mergedInto: { select: { code: true } },
+      mergedOrders: {
+        select: { code: true },
+        orderBy: { createdAt: "asc" },
       },
-    },
-  });
+      extraCharges: true,
+      items: {
+          include: { product: true },
+        },
+      },
+    }),
+    prisma.storeSetting.findUnique({ where: { id: "default" } }),
+  ]);
 
   if (!order) return null;
 
   return {
     code: order.code,
+    createdAtIso: order.createdAt.toISOString(),
     createdAtLabel: formatOrderTime(order.createdAt),
+    receiptDateLabel: new Intl.DateTimeFormat("vi-VN", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    }).format(order.createdAt),
+    receiptLongDateLabel: `Ngày ${String(order.createdAt.getDate()).padStart(2, "0")} tháng ${String(
+      order.createdAt.getMonth() + 1,
+    ).padStart(2, "0")} năm ${order.createdAt.getFullYear()}`,
+    store: {
+      name: storeSettings?.shopName ?? "Shop Retail",
+      phone: storeSettings?.phone ?? "",
+    },
     customer: order.customer,
     status: formatOrderStatus(order.status),
+    statusCode: order.status,
+    sourceCodes: order.mergedOrders.map((mergedOrder) => mergedOrder.code),
+    mergedIntoCode: order.mergedInto?.code ?? null,
     subtotal: formatCurrency(order.subtotal),
+    subtotalValue: order.subtotal,
     shippingFee: formatCurrency(order.shippingFee),
+    shippingFeeValue: order.shippingFee,
     tax: formatCurrency(order.tax),
+    taxValue: order.tax,
     total: formatCurrency(order.total),
+    totalValue: order.total,
+    extraChargeTotal: order.extraCharges.reduce((sum, charge) => sum + charge.amount, 0),
+    extraCharges: order.extraCharges.map((charge) => ({
+      name: charge.name,
+      amount: charge.amount,
+      amountLabel: formatCurrency(charge.amount),
+    })),
     paymentMethod: order.paymentMethod ?? "Chưa ghi nhận",
     shippingMethod: order.shippingMethod ?? "Chưa chọn",
     shippingAddress: order.shippingAddress ?? order.customer.address ?? "Chưa có địa chỉ",
@@ -71,6 +117,8 @@ export async function getOrderDetail(code: string) {
       detail: item.detail ?? "",
       sku: item.sku ?? "",
       qty: item.quantity,
+      unitPrice: item.unitPrice,
+      lineTotal: item.unitPrice * item.quantity,
       price: formatCurrency(item.unitPrice * item.quantity),
       icon: iconMap[item.product.icon as keyof typeof iconMap] ?? Package,
     })),

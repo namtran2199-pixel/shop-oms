@@ -4,6 +4,8 @@ const prisma = new PrismaClient();
 
 const statements = [
   `DROP TABLE IF EXISTS "User" CASCADE`,
+  `DROP TABLE IF EXISTS "OrderExtraCharge" CASCADE`,
+  `DROP TABLE IF EXISTS "ExtraCharge" CASCADE`,
   `DROP TABLE IF EXISTS "OrderItem" CASCADE`,
   `DROP TABLE IF EXISTS "Order" CASCADE`,
   `DROP TABLE IF EXISTS "Product" CASCADE`,
@@ -12,7 +14,7 @@ const statements = [
   `DROP TYPE IF EXISTS "UserRole" CASCADE`,
   `DROP TYPE IF EXISTS "OrderStatus" CASCADE`,
   `CREATE TYPE "UserRole" AS ENUM ('ADMIN', 'MANAGER', 'STAFF')`,
-  `CREATE TYPE "OrderStatus" AS ENUM ('PAID', 'PROCESSING', 'SHIPPED', 'CANCELLED')`,
+  `CREATE TYPE "OrderStatus" AS ENUM ('DRAFT', 'PAID', 'PROCESSING', 'SHIPPED', 'CANCELLED', 'MERGED')`,
   `CREATE TABLE "User" (
     "id" TEXT PRIMARY KEY NOT NULL,
     "username" TEXT NOT NULL UNIQUE,
@@ -46,6 +48,7 @@ const statements = [
     "code" TEXT NOT NULL UNIQUE,
     "customerId" TEXT NOT NULL,
     "status" "OrderStatus" NOT NULL DEFAULT 'PROCESSING',
+    "mergedIntoId" TEXT,
     "subtotal" INTEGER NOT NULL,
     "discount" INTEGER NOT NULL DEFAULT 0,
     "shippingFee" INTEGER NOT NULL DEFAULT 0,
@@ -58,7 +61,10 @@ const statements = [
     "updatedAt" TIMESTAMP(3) NOT NULL,
     CONSTRAINT "Order_customerId_fkey"
       FOREIGN KEY ("customerId") REFERENCES "Customer"("id")
-      ON DELETE RESTRICT ON UPDATE CASCADE
+      ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT "Order_mergedIntoId_fkey"
+      FOREIGN KEY ("mergedIntoId") REFERENCES "Order"("id")
+      ON DELETE SET NULL ON UPDATE CASCADE
   )`,
   `CREATE TABLE "OrderItem" (
     "id" TEXT PRIMARY KEY NOT NULL,
@@ -75,6 +81,27 @@ const statements = [
     CONSTRAINT "OrderItem_productId_fkey"
       FOREIGN KEY ("productId") REFERENCES "Product"("id")
       ON DELETE RESTRICT ON UPDATE CASCADE
+  )`,
+  `CREATE TABLE "ExtraCharge" (
+    "id" TEXT PRIMARY KEY NOT NULL,
+    "name" TEXT NOT NULL,
+    "amount" INTEGER NOT NULL,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL
+  )`,
+  `CREATE TABLE "OrderExtraCharge" (
+    "id" TEXT PRIMARY KEY NOT NULL,
+    "orderId" TEXT NOT NULL,
+    "extraChargeId" TEXT,
+    "name" TEXT NOT NULL,
+    "amount" INTEGER NOT NULL,
+    CONSTRAINT "OrderExtraCharge_orderId_fkey"
+      FOREIGN KEY ("orderId") REFERENCES "Order"("id")
+      ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "OrderExtraCharge_extraChargeId_fkey"
+      FOREIGN KEY ("extraChargeId") REFERENCES "ExtraCharge"("id")
+      ON DELETE SET NULL ON UPDATE CASCADE
   )`,
   `CREATE TABLE "StoreSetting" (
     "id" TEXT PRIMARY KEY NOT NULL DEFAULT 'default',

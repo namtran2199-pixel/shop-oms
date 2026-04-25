@@ -6,10 +6,12 @@ export function formatCurrency(value: number) {
 
 export function formatOrderStatus(status: OrderStatus) {
   const labels: Record<OrderStatus, string> = {
+    DRAFT: "Phiếu tạm",
     PAID: "Đã thanh toán",
     PROCESSING: "Đang xử lý",
     SHIPPED: "Đang giao",
     CANCELLED: "Đã hủy",
+    MERGED: "Đã gộp",
   };
 
   return labels[status];

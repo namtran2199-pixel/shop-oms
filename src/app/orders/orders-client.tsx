@@ -13,6 +13,7 @@ type OrderRow = {
   total: string;
   status: string;
   time: string;
+  items: string;
 };
 
 type OrdersResponse = {
@@ -126,10 +127,12 @@ export function OrdersClient() {
                 }}
               >
                 <option>Tất cả</option>
+                <option>Phiếu tạm</option>
                 <option>Đã thanh toán</option>
                 <option>Đang xử lý</option>
                 <option>Đang giao</option>
                 <option>Đã hủy</option>
+                <option>Đã gộp</option>
               </select>
               <ChevronDown
                 className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-secondary-neutral-gray"
@@ -177,7 +180,14 @@ export function OrdersClient() {
                 <td className="px-6 py-5 font-mono text-sm text-near-black-ink">
                   {order.id}
                 </td>
-                <td className="px-6 py-5 font-medium">{order.customer}</td>
+                <td className="px-6 py-5">
+                  <p className="font-medium">{order.customer}</p>
+                  {order.items ? (
+                    <p className="mt-1 max-w-64 truncate text-sm text-secondary-neutral-gray">
+                      {order.items}
+                    </p>
+                  ) : null}
+                </td>
                 <td className="px-6 py-5 text-secondary-neutral-gray">{order.phone}</td>
                 <td className="px-6 py-5 font-semibold">{order.total}</td>
                 <td className="px-6 py-5">
@@ -186,12 +196,14 @@ export function OrdersClient() {
                 <td className="px-6 py-5 text-secondary-neutral-gray">{order.time}</td>
                 <td className="px-6 py-5">
                   <div className="flex gap-3 text-secondary-neutral-gray">
-                    <button
-                      className="hover:text-action-blue"
-                      onClick={(event) => event.stopPropagation()}
-                    >
-                      <Printer size={18} />
-                    </button>
+                    {order.status !== "Phiếu tạm" && order.status !== "Đã gộp" ? (
+                      <button
+                        className="hover:text-action-blue"
+                        onClick={(event) => event.stopPropagation()}
+                      >
+                        <Printer size={18} />
+                      </button>
+                    ) : null}
                     <button
                       className="hover:text-error"
                       onClick={(event) => {

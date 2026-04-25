@@ -8,10 +8,12 @@ datasource db {
 }
 
 enum OrderStatus {
+  DRAFT
   PAID
   PROCESSING
   SHIPPED
   CANCELLED
+  MERGED
 }
 
 enum UserRole {
@@ -58,6 +60,7 @@ model Order {
   code            String      @unique
   customerId      String
   status          OrderStatus @default(PROCESSING)
+  mergedIntoId    String?
   subtotal        Int
   discount        Int         @default(0)
   shippingFee     Int         @default(0)
@@ -69,7 +72,10 @@ model Order {
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
   customer        Customer    @relation(fields: [customerId], references: [id])
+  mergedInto      Order?      @relation("MergedOrders", fields: [mergedIntoId], references: [id])
+  mergedOrders    Order[]     @relation("MergedOrders")
   items           OrderItem[]
+  extraCharges    OrderExtraCharge[]
 }
 
 model OrderItem {
@@ -83,6 +89,26 @@ model OrderItem {
   unitPrice Int
   order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
   product   Product @relation(fields: [productId], references: [id])
+}
+
+model ExtraCharge {
+  id           String             @id @default(cuid())
+  name         String
+  amount       Int
+  isActive     Boolean            @default(true)
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+  orderCharges OrderExtraCharge[]
+}
+
+model OrderExtraCharge {
+  id            String       @id @default(cuid())
+  orderId       String
+  extraChargeId String?
+  name          String
+  amount        Int
+  order         Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  extraCharge   ExtraCharge? @relation(fields: [extraChargeId], references: [id], onDelete: SetNull)
 }
 
 model StoreSetting {

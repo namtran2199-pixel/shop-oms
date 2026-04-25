@@ -79,6 +79,8 @@ const statuses = [
 
 async function main() {
   await prisma.user.deleteMany();
+  await prisma.orderExtraCharge.deleteMany();
+  await prisma.extraCharge.deleteMany();
   await prisma.orderItem.deleteMany();
   await prisma.order.deleteMany();
   await prisma.product.deleteMany();
@@ -178,13 +180,20 @@ async function main() {
 
   await prisma.storeSetting.create({
     data: {
-      shopName: "Lumi Fashion & Beauty",
+      shopName: "SILEP Thái Lan - Hàn Quốc",
       phone: "090 100 0000",
       paperSize: "A5",
       showBarcode: true,
       autoPrint: false,
       shippingUnits: "GHTK,GHN,Viettel Post,Ahamove",
     },
+  });
+
+  await prisma.extraCharge.createMany({
+    data: [
+      { name: "Phí ship kv Biển, Ngã 4 Thanh Tín", amount: 15000 },
+      { name: "trung tâm", amount: 10000 },
+    ],
   });
 }
 
