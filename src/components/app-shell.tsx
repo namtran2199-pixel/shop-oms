@@ -34,13 +34,13 @@ export function AppShell({
       <input id="mobile-sidebar" type="checkbox" className="peer sr-only" />
       <label
         htmlFor="mobile-sidebar"
-        className="fixed inset-0 z-40 hidden bg-black/20 backdrop-blur-[2px] peer-checked:block lg:peer-checked:hidden"
+        className="fixed inset-0 z-40 hidden bg-black/35 peer-checked:block lg:peer-checked:hidden"
         aria-label="Đóng menu"
       />
-      <aside className="fixed left-0 top-0 z-50 flex h-screen w-64 -translate-x-full flex-col border-r border-soft-border-gray bg-zinc-50 transition-transform peer-checked:translate-x-0 lg:translate-x-0">
+      <aside className="fixed left-0 top-0 z-50 flex h-screen w-72 max-w-[82vw] -translate-x-full flex-col border-r border-soft-border-gray bg-white transition-transform peer-checked:translate-x-0 lg:w-64 lg:translate-x-0">
         <div className="px-6 py-8">
           <div className="flex items-start justify-between gap-3">
-            <Link href="/orders" className="block">
+            <Link href="/orders/new" className="block">
             <span className="block text-lg font-bold text-zinc-900">
               Shop Retail
             </span>
@@ -79,7 +79,7 @@ export function AppShell({
         </nav>
       </aside>
 
-      <header className="fixed left-0 right-0 top-0 z-40 flex h-16 items-center justify-between border-b border-soft-border-gray bg-white/80 px-5 backdrop-blur-md lg:left-64 lg:px-8">
+      <header className="fixed left-0 right-0 top-0 z-40 flex h-16 items-center justify-between border-b border-soft-border-gray bg-white px-5 lg:left-64 lg:px-8">
         <div className="flex items-center gap-3 lg:hidden">
           <label
             htmlFor="mobile-sidebar"
@@ -88,7 +88,7 @@ export function AppShell({
           >
             <Menu size={20} />
           </label>
-          <Link href="/orders" className="font-semibold text-near-black-ink">
+          <Link href="/orders/new" className="font-semibold text-near-black-ink">
             Shop Retail
           </Link>
         </div>
@@ -112,7 +112,7 @@ export function AppShell({
       </header>
 
       <main className="min-h-screen pt-16 lg:ml-64">
-        <div className="mx-auto max-w-7xl px-5 py-10 md:px-10 md:py-12">
+        <div className="mx-auto max-w-7xl px-4 py-6 md:px-10 md:py-12">
           {children}
         </div>
       </main>

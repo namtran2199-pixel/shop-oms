@@ -355,11 +355,11 @@ export function CreateOrderClient({ initialPhone = "" }: { initialPhone?: string
     customerSuggestions.length === 0;
 
   return (
-    <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_400px]">
-      <div className="space-y-6">
-        <Card className="p-6">
+    <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_400px] xl:gap-8">
+      <div className="space-y-5 md:space-y-6">
+        <Card className="p-4 md:p-6">
           <div className="mb-5">
-            <h2 className="text-xl font-semibold">Thông tin khách hàng</h2>
+            <h2 className="text-lg font-semibold md:text-xl">Thông tin khách hàng</h2>
             <p className="mt-1 text-sm text-secondary-neutral-gray">
               Gõ tên và số điện thoại để lưu phiếu tạm cho khách.
             </p>
@@ -424,9 +424,9 @@ export function CreateOrderClient({ initialPhone = "" }: { initialPhone?: string
           </div>
         </Card>
 
-        <Card className="p-6">
+        <Card className="p-4 md:p-6">
           <div className="mb-5">
-            <h2 className="text-xl font-semibold">Sản phẩm đang đặt</h2>
+            <h2 className="text-lg font-semibold md:text-xl">Sản phẩm đang đặt</h2>
             <div className="relative mt-4">
               <Search
                 className="absolute left-3 top-1/2 -translate-y-1/2 text-secondary-neutral-gray"
@@ -472,14 +472,14 @@ export function CreateOrderClient({ initialPhone = "" }: { initialPhone?: string
               ))}
             </div>
           ) : (
-            <div className="mb-6 rounded-xl border border-dashed border-soft-border-gray bg-surface-container-low px-6 py-10 text-center">
+            <div className="mb-6 rounded-xl border border-dashed border-soft-border-gray bg-surface-container-low px-5 py-8 text-center md:px-6 md:py-10">
               <Search className="mx-auto mb-3 text-secondary-neutral-gray" size={20} />
               <p className="font-medium text-on-surface">Không có sản phẩm phù hợp</p>
             </div>
           )}
 
           {draftItems.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-soft-border-gray bg-surface-container-low px-6 py-14 text-center">
+            <div className="rounded-xl border border-dashed border-soft-border-gray bg-surface-container-low px-5 py-10 text-center md:px-6 md:py-14">
               <ShoppingBasket className="mx-auto mb-4 text-secondary-neutral-gray" />
               <h3 className="font-semibold text-on-surface">Phiếu tạm chưa có sản phẩm</h3>
               <p className="mt-2 text-sm text-secondary-neutral-gray">
@@ -554,9 +554,9 @@ export function CreateOrderClient({ initialPhone = "" }: { initialPhone?: string
         </Card>
       </div>
 
-      <div className="space-y-6">
-        <Card className="p-6">
-          <h2 className="mb-5 text-xl font-semibold">Tóm tắt phiếu đang nhập</h2>
+      <div className="space-y-5 md:space-y-6">
+        <Card className="p-4 md:p-6">
+          <h2 className="mb-5 text-lg font-semibold md:text-xl">Tóm tắt phiếu đang nhập</h2>
           <div className="space-y-4 text-sm">
             <Row label="Khách hàng" value={customerName || "Chưa nhập"} />
             <Row label="Số điện thoại" value={normalizedPhone || "Chưa nhập"} />
@@ -581,10 +581,10 @@ export function CreateOrderClient({ initialPhone = "" }: { initialPhone?: string
           ) : null}
         </Card>
 
-        <Card className="p-6">
+        <Card className="p-4 md:p-6">
           <div className="mb-5 flex items-start justify-between gap-3">
             <div>
-              <h2 className="text-xl font-semibold">Phiếu tạm của khách</h2>
+              <h2 className="text-lg font-semibold md:text-xl">Phiếu tạm của khách</h2>
               <p className="mt-1 text-sm text-secondary-neutral-gray">
                 Chọn 1 phiếu để chốt đơn, hoặc chọn nhiều phiếu cùng SĐT để gộp khi chuẩn bị ship.
               </p>
@@ -696,7 +696,7 @@ export function CreateOrderClient({ initialPhone = "" }: { initialPhone?: string
               </Button>
             </div>
           ) : (
-            <div className="rounded-xl border border-dashed border-soft-border-gray bg-surface-container-low px-5 py-8 text-sm text-secondary-neutral-gray">
+            <div className="rounded-xl border border-dashed border-soft-border-gray bg-surface-container-low px-4 py-6 text-sm text-secondary-neutral-gray md:px-5 md:py-8">
               {phoneIsValid
                 ? "Khách này chưa có phiếu tạm nào."
                 : "Nhập hoặc chọn khách để xem các phiếu tạm đang mở."}

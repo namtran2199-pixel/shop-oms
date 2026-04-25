@@ -8,5 +8,5 @@ export default async function Home() {
     cookieStore.get(AUTH_COOKIE_NAME)?.value,
   );
 
-  redirect(isAuthenticated ? "/orders" : "/login");
+  redirect(isAuthenticated ? "/orders/new" : "/login");
 }
