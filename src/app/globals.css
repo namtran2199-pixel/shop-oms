@@ -156,6 +156,11 @@ textarea:disabled {
     page-break-after: avoid;
   }
 
+  .print-batch .print-receipt:not(:last-child) {
+    break-after: page;
+    page-break-after: always;
+  }
+
   .print-receipt h1 {
     margin: 0 0 6px;
     text-align: center;

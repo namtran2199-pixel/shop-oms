@@ -5,7 +5,9 @@ import { OrdersClient } from "./orders-client";
 export default function OrdersPage() {
   return (
     <AppShell active="orders">
-      <PageHeader title="Đơn hàng" description="Quản lý và theo dõi toàn bộ đơn hàng của khách." />
+      <div className="screen-only">
+        <PageHeader title="Đơn hàng" description="Quản lý và theo dõi toàn bộ đơn hàng của khách." />
+      </div>
       <OrdersClient />
     </AppShell>
   );
