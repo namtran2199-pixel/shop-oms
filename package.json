@@ -11,6 +11,7 @@
     "db:push": "tsx prisma/apply-schema.ts && prisma generate",
     "db:reset": "npm run db:push && npm run db:seed",
     "db:seed": "tsx prisma/seed.ts",
+    "db:seed:customers": "tsx prisma/seed-customers-from-csv.ts",
     "db:studio": "prisma studio"
   },
   "dependencies": {
