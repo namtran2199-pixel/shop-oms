@@ -117,96 +117,98 @@ export function OrderDetailClient({ code }: { code: string }) {
 
   return (
     <>
-      <PageHeader
-        title={`Đơn hàng #${order.code}`}
-        description={`Được tạo lúc ${order.createdAtLabel}`}
-        actions={
-          canPrint ? (
-            <Button variant="secondary" onClick={printOrder}>
-              <Printer size={17} />
-              In đơn
-            </Button>
-          ) : null
-        }
-      />
       <PrintableReceipt order={order} />
-      <Card className="mb-6 p-5">
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div>
-            <div className="mb-2">
-              <StatusBadge status={order.status} />
+      <div className="screen-only">
+        <PageHeader
+          title={`Đơn hàng #${order.code}`}
+          description={`Được tạo lúc ${order.createdAtLabel}`}
+          actions={
+            canPrint ? (
+              <Button variant="secondary" onClick={printOrder}>
+                <Printer size={17} />
+                In đơn
+              </Button>
+            ) : null
+          }
+        />
+        <Card className="mb-6 p-5">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div>
+              <div className="mb-2">
+                <StatusBadge status={order.status} />
+              </div>
+              {order.status === "Phiếu tạm" ? (
+                <p className="text-sm text-secondary-neutral-gray">
+                  Phiếu này chưa phải bill cuối. Khi chuẩn bị ship, hãy chốt phiếu này hoặc gộp
+                  cùng các phiếu tạm khác của khách rồi mới in bill.
+                </p>
+              ) : null}
+              {order.mergedIntoCode ? (
+                <p className="text-sm text-secondary-neutral-gray">
+                  Phiếu này đã được gộp vào{" "}
+                  <Link className="font-medium text-action-blue" href={`/orders/${order.mergedIntoCode}`}>
+                    {order.mergedIntoCode}
+                  </Link>
+                  .
+                </p>
+              ) : null}
+              {order.sourceCodes.length > 0 ? (
+                <p className="text-sm text-secondary-neutral-gray">
+                  Đơn này được tạo do gộp các phiếu: {order.sourceCodes.join(", ")}.
+                </p>
+              ) : null}
             </div>
             {order.status === "Phiếu tạm" ? (
-              <p className="text-sm text-secondary-neutral-gray">
-                Phiếu này chưa phải bill cuối. Khi chuẩn bị ship, hãy chốt phiếu này hoặc gộp
-                cùng các phiếu tạm khác của khách rồi mới in bill.
-              </p>
+              <Link href={`/orders/new?phone=${encodeURIComponent(order.customer.phone)}`}>
+                <Button variant="secondary">Chốt / gộp phiếu</Button>
+              </Link>
             ) : null}
-            {order.mergedIntoCode ? (
-              <p className="text-sm text-secondary-neutral-gray">
-                Phiếu này đã được gộp vào{" "}
-                <Link className="font-medium text-action-blue" href={`/orders/${order.mergedIntoCode}`}>
-                  {order.mergedIntoCode}
-                </Link>
-                .
-              </p>
-            ) : null}
-            {order.sourceCodes.length > 0 ? (
-              <p className="text-sm text-secondary-neutral-gray">
-                Đơn này được tạo do gộp các phiếu: {order.sourceCodes.join(", ")}.
-              </p>
-            ) : null}
-          </div>
-          {order.status === "Phiếu tạm" ? (
-            <Link href={`/orders/new?phone=${encodeURIComponent(order.customer.phone)}`}>
-              <Button variant="secondary">Chốt / gộp phiếu</Button>
-            </Link>
-          ) : null}
-        </div>
-      </Card>
-      <div className="grid gap-8 xl:grid-cols-[1fr_380px]">
-        <Card className="p-6">
-          <div className="mb-6 flex items-center justify-between">
-            <h2 className="text-lg font-semibold">Sản phẩm đã đặt</h2>
-            <span className="rounded-full bg-surface-container px-3 py-1 text-sm">
-              {order.items.length} sản phẩm
-            </span>
-          </div>
-          <div className="space-y-5">
-            {order.items.map((item) => (
-              <div key={item.sku || item.name} className="flex gap-4 rounded-xl bg-surface-container-low p-4">
-                <div className="grid h-14 w-14 shrink-0 place-items-center rounded-lg bg-white text-action-blue" />
-                <div className="flex-1">
-                  <h3 className="font-semibold">{item.name}</h3>
-                  <p className="mt-1 text-sm text-secondary-neutral-gray">{item.detail}</p>
-                  <p className="mt-2 font-mono text-xs text-on-surface-variant">
-                    SKU: {item.sku}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm text-secondary-neutral-gray">SL: {item.qty}</p>
-                  <p className="mt-2 font-semibold">{item.price}</p>
-                </div>
-              </div>
-            ))}
           </div>
         </Card>
-        <div className="space-y-6">
+        <div className="grid gap-8 xl:grid-cols-[1fr_380px]">
           <Card className="p-6">
-            <h2 className="mb-4 font-semibold">Khách hàng</h2>
-            <p className="font-semibold">{order.customer.name}</p>
-            <Info icon={<Mail size={18} />} label="Thư điện tử" value={order.customer.email ?? "Chưa có email"} />
-            <Info icon={<Phone size={18} />} label="Số điện thoại" value={order.customer.phone} />
+            <div className="mb-6 flex items-center justify-between">
+              <h2 className="text-lg font-semibold">Sản phẩm đã đặt</h2>
+              <span className="rounded-full bg-surface-container px-3 py-1 text-sm">
+                {order.items.length} sản phẩm
+              </span>
+            </div>
+            <div className="space-y-5">
+              {order.items.map((item) => (
+                <div key={item.sku || item.name} className="flex gap-4 rounded-xl bg-surface-container-low p-4">
+                  <div className="grid h-14 w-14 shrink-0 place-items-center rounded-lg bg-white text-action-blue" />
+                  <div className="flex-1">
+                    <h3 className="font-semibold">{item.name}</h3>
+                    <p className="mt-1 text-sm text-secondary-neutral-gray">{item.detail}</p>
+                    <p className="mt-2 font-mono text-xs text-on-surface-variant">
+                      SKU: {item.sku}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm text-secondary-neutral-gray">SL: {item.qty}</p>
+                    <p className="mt-2 font-semibold">{item.price}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
           </Card>
-          <Card className="p-6">
-            <h2 className="mb-4 font-semibold">Tóm tắt thanh toán</h2>
-            <Summary label={`Tạm tính (${order.items.length} sản phẩm)`} value={order.subtotal} />
-            {order.extraCharges.map((charge) => (
-              <Summary key={charge.name} label={charge.name} value={charge.amountLabel} />
-            ))}
-            <div className="my-4 border-t border-soft-border-gray" />
-            <Summary label="Tổng cộng" value={order.total} strong />
-          </Card>
+          <div className="space-y-6">
+            <Card className="p-6">
+              <h2 className="mb-4 font-semibold">Khách hàng</h2>
+              <p className="font-semibold">{order.customer.name}</p>
+              <Info icon={<Mail size={18} />} label="Thư điện tử" value={order.customer.email ?? "Chưa có email"} />
+              <Info icon={<Phone size={18} />} label="Số điện thoại" value={order.customer.phone} />
+            </Card>
+            <Card className="p-6">
+              <h2 className="mb-4 font-semibold">Tóm tắt thanh toán</h2>
+              <Summary label={`Tạm tính (${order.items.length} sản phẩm)`} value={order.subtotal} />
+              {order.extraCharges.map((charge) => (
+                <Summary key={charge.name} label={charge.name} value={charge.amountLabel} />
+              ))}
+              <div className="my-4 border-t border-soft-border-gray" />
+              <Summary label="Tổng cộng" value={order.total} strong />
+            </Card>
+          </div>
         </div>
       </div>
     </>

@@ -30,14 +30,14 @@ export function AppShell({
   children: ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-background text-on-surface">
-      <input id="mobile-sidebar" type="checkbox" className="peer sr-only" />
+    <div className="app-shell min-h-screen bg-background text-on-surface">
+      <input id="mobile-sidebar" type="checkbox" className="app-shell-chrome peer sr-only" />
       <label
         htmlFor="mobile-sidebar"
-        className="fixed inset-0 z-40 hidden bg-black/35 peer-checked:block lg:peer-checked:hidden"
+        className="app-shell-chrome fixed inset-0 z-40 hidden bg-black/35 peer-checked:block lg:peer-checked:hidden"
         aria-label="Đóng menu"
       />
-      <aside className="fixed left-0 top-0 z-50 flex h-screen w-72 max-w-[82vw] -translate-x-full flex-col border-r border-soft-border-gray bg-white transition-transform peer-checked:translate-x-0 lg:w-64 lg:translate-x-0">
+      <aside className="app-shell-chrome fixed left-0 top-0 z-50 flex h-screen w-72 max-w-[82vw] -translate-x-full flex-col border-r border-soft-border-gray bg-white transition-transform peer-checked:translate-x-0 lg:w-64 lg:translate-x-0">
         <div className="px-6 py-8">
           <div className="flex items-start justify-between gap-3">
             <Link href="/orders/new" className="block">
@@ -79,7 +79,7 @@ export function AppShell({
         </nav>
       </aside>
 
-      <header className="fixed left-0 right-0 top-0 z-40 flex h-16 items-center justify-between border-b border-soft-border-gray bg-white px-5 lg:left-64 lg:px-8">
+      <header className="app-shell-chrome fixed left-0 right-0 top-0 z-40 flex h-16 items-center justify-between border-b border-soft-border-gray bg-white px-5 lg:left-64 lg:px-8">
         <div className="flex items-center gap-3 lg:hidden">
           <label
             htmlFor="mobile-sidebar"
