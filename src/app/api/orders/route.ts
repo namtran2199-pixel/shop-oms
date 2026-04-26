@@ -93,6 +93,7 @@ export async function POST(request: Request) {
     quantity?: number;
     status?: string;
     temporary?: boolean;
+    shippingAddress?: string;
     extraChargeIds?: string[];
     items?: Array<{ productId: string; quantity: number }>;
   };
@@ -112,6 +113,7 @@ export async function POST(request: Request) {
   }
 
   const normalizedPhone = normalizePhone(body.phone);
+  const shippingAddress = body.shippingAddress?.trim() || null;
   if (!isValidVietnamPhone(normalizedPhone)) {
     return NextResponse.json(
       { error: "Số điện thoại không hợp lệ" },
@@ -137,16 +139,18 @@ export async function POST(request: Request) {
   const existingCustomer = existingCustomers.find(
     (customer) => normalizePhone(customer.phone) === normalizedPhone,
   );
+  const customerData = {
+    name: body.customerName.trim(),
+    phone: normalizedPhone,
+    ...(shippingAddress ? { address: shippingAddress } : {}),
+  };
   const customer = existingCustomer
     ? await prisma.customer.update({
         where: { id: existingCustomer.id },
-        data: { name: body.customerName.trim(), phone: normalizedPhone },
+        data: customerData,
       })
     : await prisma.customer.create({
-        data: {
-          name: body.customerName.trim(),
-          phone: normalizedPhone,
-        },
+        data: customerData,
       });
 
   const orderItems = requestedItems.map((item) => {
@@ -184,6 +188,7 @@ export async function POST(request: Request) {
             status,
             subtotal,
             total: subtotal + extraChargeTotal,
+            shippingAddress,
             paymentMethod:
               status === OrderStatus.DRAFT
                 ? "Phiếu tạm"

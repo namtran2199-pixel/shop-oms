@@ -36,6 +36,7 @@ type CustomerSuggestion = {
   id: string;
   name: string;
   phone: string;
+  address: string | null;
   summary: string;
 };
 
@@ -116,6 +117,8 @@ export function CreateOrderClient({ initialPhone = "" }: { initialPhone?: string
   const [products, setProducts] = useState<ProductOption[]>([]);
   const [phone, setPhone] = useState(normalizedInitialPhone);
   const [customerName, setCustomerName] = useState("");
+  const [customerAddress, setCustomerAddress] = useState("");
+  const [customerSearchKeyword, setCustomerSearchKeyword] = useState(normalizedInitialPhone);
   const [customerSuggestions, setCustomerSuggestions] = useState<CustomerSuggestion[]>([]);
   const [showCustomerSuggestions, setShowCustomerSuggestions] = useState(false);
   const [isSearchingCustomers, setIsSearchingCustomers] = useState(false);
@@ -178,7 +181,7 @@ export function CreateOrderClient({ initialPhone = "" }: { initialPhone?: string
   }, []);
 
   useEffect(() => {
-    const keywordValue = phone.trim();
+    const keywordValue = customerSearchKeyword.trim();
     const controller = new AbortController();
     const timer = window.setTimeout(async () => {
       if (!showCustomerSuggestions || keywordValue.length < 2) {
@@ -207,7 +210,7 @@ export function CreateOrderClient({ initialPhone = "" }: { initialPhone?: string
       controller.abort();
       window.clearTimeout(timer);
     };
-  }, [phone, showCustomerSuggestions]);
+  }, [customerSearchKeyword, showCustomerSuggestions]);
 
   useEffect(() => {
     if (!phoneIsValid) return;
@@ -254,6 +257,7 @@ export function CreateOrderClient({ initialPhone = "" }: { initialPhone?: string
   function selectCustomer(customer: CustomerSuggestion) {
     setCustomerName(customer.name);
     setPhone(normalizePhoneInput(customer.phone));
+    setCustomerAddress(customer.address ?? "");
     setPhoneTouched(true);
     setShowCustomerSuggestions(false);
     setCustomerSuggestions([]);
@@ -388,6 +392,7 @@ export function CreateOrderClient({ initialPhone = "" }: { initialPhone?: string
       body: JSON.stringify({
         customerName: customerName.trim(),
         phone: normalizedPhone,
+        shippingAddress: customerAddress.trim(),
         temporary: true,
         items: draftItems.map((item) => ({
           productId: item.productId,
@@ -423,6 +428,7 @@ export function CreateOrderClient({ initialPhone = "" }: { initialPhone?: string
       body: JSON.stringify({
         customerName: customerName.trim(),
         phone: normalizedPhone,
+        shippingAddress: customerAddress.trim(),
         status: "Đã thanh toán",
         extraChargeIds: selectedExtraCharges,
         items: draftItems.map((item) => ({
@@ -496,8 +502,8 @@ export function CreateOrderClient({ initialPhone = "" }: { initialPhone?: string
           <Card className="p-4 md:p-6">
             <div className="mb-5">
               <h2 className="text-lg font-semibold md:text-xl">Thông tin khách hàng</h2>
-              <p className="mt-1 text-sm text-secondary-neutral-gray">
-                Gõ tên và số điện thoại để lưu phiếu tạm cho khách.
+                <p className="mt-1 text-sm text-secondary-neutral-gray">
+                Gõ tên hoặc số điện thoại để tìm và lưu phiếu tạm cho khách.
               </p>
             </div>
             <div className="grid gap-5 md:grid-cols-2">
@@ -510,6 +516,7 @@ export function CreateOrderClient({ initialPhone = "" }: { initialPhone?: string
                 onChange={(value) => {
                   const nextPhone = normalizePhoneInput(value);
                   setPhone(nextPhone);
+                  setCustomerSearchKeyword(nextPhone);
                   setPhoneTouched(true);
                   setShowCustomerSuggestions(true);
                   if (!isValidVietnamPhone(nextPhone)) {
@@ -519,7 +526,24 @@ export function CreateOrderClient({ initialPhone = "" }: { initialPhone?: string
                 }}
                 required
               />
-              <Field label="Họ và tên" value={customerName} onChange={setCustomerName} required />
+              <Field
+                label="Họ và tên"
+                value={customerName}
+                onChange={(value) => {
+                  setCustomerName(value);
+                  setCustomerSearchKeyword(value);
+                  setShowCustomerSuggestions(true);
+                }}
+                required
+              />
+              <div className="md:col-span-2">
+                <Field
+                  label="Địa chỉ"
+                  value={customerAddress}
+                  onChange={setCustomerAddress}
+                  autoComplete="street-address"
+                />
+              </div>
             </div>
 
             <div className="mt-4 space-y-2">
@@ -545,6 +569,9 @@ export function CreateOrderClient({ initialPhone = "" }: { initialPhone?: string
                       <span className="block font-medium">{customer.name}</span>
                       <span className="text-sm text-secondary-neutral-gray">
                         {customer.phone} • {customer.summary}
+                      </span>
+                      <span className="mt-1 block text-sm text-secondary-neutral-gray">
+                        {customer.address ?? "Chưa có địa chỉ"}
                       </span>
                     </button>
                   ))}
@@ -793,6 +820,7 @@ export function CreateOrderClient({ initialPhone = "" }: { initialPhone?: string
             <div className="space-y-4 text-sm">
               <Row label="Khách hàng" value={customerName || "Chưa nhập"} />
               <Row label="Số điện thoại" value={normalizedPhone || "Chưa nhập"} />
+              <Row label="Địa chỉ" value={customerAddress || "Chưa nhập"} />
               <Row label="Số sản phẩm" value={`${draftItems.length}`} />
               <Row label="Tổng số lượng" value={`${totalQuantity}`} />
               <Row label="Tổng tiền hàng" value={formatCurrency(subtotal)} strong />
@@ -852,6 +880,8 @@ export function CreateOrderClient({ initialPhone = "" }: { initialPhone?: string
                 onClick={() => {
                   setPhone("");
                   setCustomerName("");
+                  setCustomerAddress("");
+                  setCustomerSearchKeyword("");
                   setPhoneTouched(false);
                   setSelectedTempOrders([]);
                   setTempOrders([]);

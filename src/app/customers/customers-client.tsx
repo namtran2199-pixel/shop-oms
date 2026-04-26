@@ -9,6 +9,7 @@ type CustomerListItem = {
   id: string;
   name: string;
   phone: string;
+  address: string | null;
   recent: string;
   summary: string;
 };
@@ -25,6 +26,9 @@ type CustomerHistoryItem = {
 type SelectedCustomer = {
   id: string;
   name: string;
+  phone: string;
+  email: string | null;
+  address: string | null;
   totalSpend: string;
   orderCount: string;
   history: CustomerHistoryItem[];
@@ -226,6 +230,9 @@ export function CustomersClient() {
               <p className="mt-1 text-sm text-secondary-neutral-gray">
                 {customer.phone}
               </p>
+              <p className="mt-1 text-sm text-secondary-neutral-gray">
+                {customer.address ?? "Chưa có địa chỉ"}
+              </p>
               <p className="mt-2 text-xs text-on-surface-variant">
                 {customer.summary}
               </p>
@@ -317,6 +324,11 @@ export function CustomersClient() {
                   <h1 className="text-2xl font-semibold leading-tight text-near-black-ink sm:text-[32px]">
                     {data.selectedCustomer?.name ?? "Chưa có khách hàng"}
                   </h1>
+                  <div className="mt-3 space-y-1 text-sm text-secondary-neutral-gray">
+                    <p>{data.selectedCustomer?.phone ?? "Chưa có số điện thoại"}</p>
+                    <p>{data.selectedCustomer?.address ?? "Chưa có địa chỉ"}</p>
+                    {data.selectedCustomer?.email ? <p>{data.selectedCustomer.email}</p> : null}
+                  </div>
                   <div className="mt-5 grid grid-cols-1 gap-3 sm:flex sm:flex-wrap">
                     <Link
                       href="/orders/new"
