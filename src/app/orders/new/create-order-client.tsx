@@ -502,7 +502,7 @@ export function CreateOrderClient({ initialPhone = "" }: { initialPhone?: string
           <Card className="p-4 md:p-6">
             <div className="mb-5">
               <h2 className="text-lg font-semibold md:text-xl">Thông tin khách hàng</h2>
-                <p className="mt-1 text-sm text-secondary-neutral-gray">
+              <p className="mt-1 text-sm text-secondary-neutral-gray">
                 Gõ tên hoặc số điện thoại để tìm và lưu phiếu tạm cho khách.
               </p>
             </div>
