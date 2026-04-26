@@ -11,10 +11,12 @@ export default async function CreateOrderPage({
 
   return (
     <AppShell active="create">
-      <PageHeader
-        title="Tạo phiếu đặt hàng"
-        description="Lưu phiếu tạm cho từng lần khách đặt, sau đó gộp phiếu khi chuẩn bị ship."
-      />
+      <div className="screen-only">
+        <PageHeader
+          title="Tạo phiếu đặt hàng"
+          description="Lưu phiếu tạm cho từng lần khách đặt, sau đó gộp phiếu khi chuẩn bị ship."
+        />
+      </div>
       <CreateOrderClient initialPhone={resolvedSearchParams?.phone ?? ""} />
     </AppShell>
   );

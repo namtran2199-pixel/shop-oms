@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Mail, Phone, Printer } from "lucide-react";
 import { Button, Card, PageHeader, StatusBadge } from "@/components/ui";
 
-type OrderDetail = {
+export type OrderDetail = {
   code: string;
   createdAtIso: string;
   createdAtLabel: string;
@@ -215,7 +215,7 @@ export function OrderDetailClient({ code }: { code: string }) {
   );
 }
 
-function PrintableReceipt({ order }: { order: OrderDetail }) {
+export function PrintableReceipt({ order }: { order: OrderDetail }) {
   return (
     <section className="print-receipt" aria-hidden="true">
       <h1>{order.store.name}</h1>

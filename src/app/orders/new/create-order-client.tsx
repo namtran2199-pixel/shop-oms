@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   CheckSquare,
+  CreditCard,
   LoaderCircle,
   Minus,
   PackagePlus,
@@ -14,6 +15,7 @@ import {
   UserPlus,
 } from "lucide-react";
 import { Button, Card, StatusBadge } from "@/components/ui";
+import { PrintableReceipt, type OrderDetail } from "../[id]/order-detail-client";
 
 type ProductOption = {
   id: string;
@@ -121,8 +123,10 @@ export function CreateOrderClient({ initialPhone = "" }: { initialPhone?: string
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
   const [isLoadingTempOrders, setIsLoadingTempOrders] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isPaying, setIsPaying] = useState(false);
   const [isMerging, setIsMerging] = useState(false);
   const [submitError, setSubmitError] = useState("");
+  const [printableOrder, setPrintableOrder] = useState<OrderDetail | null>(null);
 
   const normalizedPhone = normalizePhoneInput(phone);
   const phoneIsValid = normalizedPhone.length > 0 && isValidVietnamPhone(normalizedPhone);
@@ -131,6 +135,7 @@ export function CreateOrderClient({ initialPhone = "" }: { initialPhone?: string
   const selectedExtraChargeTotal = extraCharges
     .filter((charge) => selectedExtraCharges.includes(charge.id))
     .reduce((sum, charge) => sum + charge.amount, 0);
+  const paymentTotal = subtotal + selectedExtraChargeTotal;
   const keyword = normalizeSearchText(productSearch);
   const filteredProducts = useMemo(() => {
     if (!keyword) return products.slice(0, 3);
@@ -214,6 +219,12 @@ export function CreateOrderClient({ initialPhone = "" }: { initialPhone?: string
     };
   }, [normalizedPhone, phoneIsValid]);
 
+  useEffect(() => {
+    if (!printableOrder) return;
+    const timer = window.setTimeout(() => window.print(), 0);
+    return () => window.clearTimeout(timer);
+  }, [printableOrder]);
+
   async function fetchTempOrders(phoneValue: string) {
     const params = new URLSearchParams({
       search: phoneValue,
@@ -267,27 +278,33 @@ export function CreateOrderClient({ initialPhone = "" }: { initialPhone?: string
   function resetDraft() {
     setDraftItems([]);
     setProductSearch("");
+    setSelectedExtraCharges([]);
     setSubmitError("");
   }
 
-  async function saveTempOrder() {
-    setSubmitError("");
-
+  function validateCurrentDraft() {
     if (!customerName.trim()) {
       setSubmitError("Họ và tên khách hàng là bắt buộc.");
-      return;
+      return false;
     }
 
     if (!phoneIsValid) {
       setPhoneTouched(true);
       setSubmitError("Số điện thoại phải đúng định dạng di động Việt Nam.");
-      return;
+      return false;
     }
 
     if (draftItems.length === 0) {
-      setSubmitError("Chưa có sản phẩm để lưu phiếu tạm.");
-      return;
+      setSubmitError("Chưa có sản phẩm để tạo phiếu.");
+      return false;
     }
+
+    return true;
+  }
+
+  async function saveTempOrder() {
+    setSubmitError("");
+    if (isSaving || isPaying || !validateCurrentDraft()) return;
 
     setIsSaving(true);
     const response = await fetch("/api/orders", {
@@ -318,6 +335,48 @@ export function CreateOrderClient({ initialPhone = "" }: { initialPhone?: string
       current.filter((code) => nextTempOrders.some((order) => order.id === code)),
     );
     setIsSaving(false);
+  }
+
+  async function payCurrentOrder() {
+    setSubmitError("");
+    if (isSaving || isPaying || !validateCurrentDraft()) return;
+
+    setIsPaying(true);
+    const response = await fetch("/api/orders", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        customerName: customerName.trim(),
+        phone: normalizedPhone,
+        status: "Đã thanh toán",
+        extraChargeIds: selectedExtraCharges,
+        items: draftItems.map((item) => ({
+          productId: item.productId,
+          quantity: item.quantity,
+        })),
+      }),
+    });
+
+    if (!response.ok) {
+      const payload = (await response.json()) as { error?: string };
+      setSubmitError(payload.error ?? "Không thể thanh toán phiếu.");
+      setIsPaying(false);
+      return;
+    }
+
+    const payload = (await response.json()) as { data: { code: string } };
+    const detailResponse = await fetch(`/api/orders/${payload.data.code}`);
+    const detailPayload = (await detailResponse.json()) as { data?: OrderDetail; error?: string };
+
+    if (!detailResponse.ok || !detailPayload.data) {
+      setSubmitError(detailPayload.error ?? "Đã thanh toán nhưng không thể tải bill để in.");
+      setIsPaying(false);
+      return;
+    }
+
+    setPrintableOrder(detailPayload.data);
+    resetDraft();
+    setIsPaying(false);
   }
 
   async function mergeSelectedOrders() {
@@ -355,7 +414,9 @@ export function CreateOrderClient({ initialPhone = "" }: { initialPhone?: string
     customerSuggestions.length === 0;
 
   return (
-    <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_400px] xl:gap-8">
+    <>
+      {printableOrder ? <PrintableReceipt order={printableOrder} /> : null}
+      <div className="screen-only grid gap-5 xl:grid-cols-[minmax(0,1fr)_400px] xl:gap-8">
       <div className="space-y-5 md:space-y-6">
         <Card className="p-4 md:p-6">
           <div className="mb-5">
@@ -566,15 +627,39 @@ export function CreateOrderClient({ initialPhone = "" }: { initialPhone?: string
             <Row label="Số sản phẩm" value={`${draftItems.length}`} />
             <Row label="Tổng số lượng" value={`${totalQuantity}`} />
             <Row label="Tổng tiền hàng" value={formatCurrency(subtotal)} strong />
+            {selectedExtraChargeTotal > 0 ? (
+              <Row label="Thu khác" value={formatCurrency(selectedExtraChargeTotal)} />
+            ) : null}
+            <Row label="Tổng thanh toán" value={formatCurrency(paymentTotal)} strong />
           </div>
-          <div className="mt-8">
-            <Button onClick={() => void saveTempOrder()} className="w-full">
+          {extraCharges.length > 0 ? (
+            <ExtraChargeSelector
+              charges={extraCharges}
+              selectedIds={selectedExtraCharges}
+              total={selectedExtraChargeTotal}
+              onChange={setSelectedExtraCharges}
+            />
+          ) : null}
+          <div className="mt-8 grid gap-3 sm:grid-cols-2">
+            <Button variant="secondary"
+              onClick={() => void saveTempOrder()} className="w-full">
               {isSaving ? (
                 <LoaderCircle size={17} className="animate-spin" />
               ) : (
                 <PackagePlus size={17} />
               )}
-              Lưu phiếu tạm
+              Lưu tạm
+            </Button>
+            <Button
+              onClick={() => void payCurrentOrder()}
+              className="w-full"
+            >
+              {isPaying ? (
+                <LoaderCircle size={17} className="animate-spin" />
+              ) : (
+                <CreditCard size={17} />
+              )}
+              Thanh toán
             </Button>
           </div>
           {submitError ? (
@@ -620,11 +705,10 @@ export function CreateOrderClient({ initialPhone = "" }: { initialPhone?: string
                 return (
                   <button
                     key={order.id}
-                    className={`w-full rounded-xl border px-4 py-3 text-left transition ${
-                      checked
-                        ? "border-action-blue bg-blue-50"
-                        : "border-soft-border-gray bg-white hover:bg-surface-container-low"
-                    }`}
+                    className={`w-full rounded-xl border px-4 py-3 text-left transition ${checked
+                      ? "border-action-blue bg-blue-50"
+                      : "border-soft-border-gray bg-white hover:bg-surface-container-low"
+                      }`}
                     onClick={() =>
                       setSelectedTempOrders((current) =>
                         current.includes(order.id)
@@ -643,47 +727,7 @@ export function CreateOrderClient({ initialPhone = "" }: { initialPhone?: string
                     </span>
                   </button>
                 );
-	              })}
-              {extraCharges.length > 0 ? (
-                <div className="rounded-xl bg-surface-container-low p-4">
-                  <div className="mb-3 flex items-center justify-between gap-3">
-                    <p className="font-semibold">Thu khác</p>
-                    <span className="text-sm font-semibold text-action-blue">
-                      {formatCurrency(selectedExtraChargeTotal)}
-                    </span>
-                  </div>
-                  <div className="space-y-2">
-                    {extraCharges.map((charge) => {
-                      const checked = selectedExtraCharges.includes(charge.id);
-                      return (
-                        <label
-                          key={charge.id}
-                          className="flex items-center justify-between gap-3 rounded-lg bg-white px-3 py-2 text-sm"
-                        >
-                          <span className="flex min-w-0 items-center gap-3">
-                            <input
-                              className="h-4 w-4 accent-[var(--action-blue)]"
-                              type="checkbox"
-                              checked={checked}
-                              onChange={(event) =>
-                                setSelectedExtraCharges((current) =>
-                                  event.target.checked
-                                    ? [...current, charge.id]
-                                    : current.filter((id) => id !== charge.id),
-                                )
-                              }
-                            />
-                            <span className="min-w-0 truncate">{charge.name}</span>
-                          </span>
-                          <span className="shrink-0 font-semibold">
-                            {formatCurrency(charge.amount)}
-                          </span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                </div>
-              ) : null}
+              })}
               <Button
                 className="mt-2 w-full"
                 onClick={() => void mergeSelectedOrders()}
@@ -707,7 +751,8 @@ export function CreateOrderClient({ initialPhone = "" }: { initialPhone?: string
           )}
         </Card>
       </div>
-    </div>
+      </div>
+    </>
   );
 }
 
@@ -756,6 +801,59 @@ function Row({ label, value, strong }: { label: string; value: string; strong?: 
       <span className={strong ? "text-right text-lg font-semibold" : "text-right font-medium"}>
         {value}
       </span>
+    </div>
+  );
+}
+
+function ExtraChargeSelector({
+  charges,
+  selectedIds,
+  total,
+  onChange,
+}: {
+  charges: ExtraCharge[];
+  selectedIds: string[];
+  total: number;
+  onChange: (ids: string[]) => void;
+}) {
+  return (
+    <div className="mt-5 rounded-xl bg-surface-container-low p-4">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <p className="font-semibold">Thu khác</p>
+        <span className="text-sm font-semibold text-action-blue">
+          {formatCurrency(total)}
+        </span>
+      </div>
+      <div className="space-y-2">
+        {charges.map((charge) => {
+          const checked = selectedIds.includes(charge.id);
+          return (
+            <label
+              key={charge.id}
+              className="flex items-center justify-between gap-3 rounded-lg bg-white px-3 py-2 text-sm"
+            >
+              <span className="flex min-w-0 items-center gap-3">
+                <input
+                  className="h-4 w-4 accent-[var(--action-blue)]"
+                  type="checkbox"
+                  checked={checked}
+                  onChange={(event) =>
+                    onChange(
+                      event.target.checked
+                        ? [...selectedIds, charge.id]
+                        : selectedIds.filter((id) => id !== charge.id),
+                    )
+                  }
+                />
+                <span className="min-w-0 truncate">{charge.name}</span>
+              </span>
+              <span className="shrink-0 font-semibold">
+                {formatCurrency(charge.amount)}
+              </span>
+            </label>
+          );
+        })}
+      </div>
     </div>
   );
 }

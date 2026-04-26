@@ -93,6 +93,7 @@ export async function POST(request: Request) {
     quantity?: number;
     status?: string;
     temporary?: boolean;
+    extraChargeIds?: string[];
     items?: Array<{ productId: string; quantity: number }>;
   };
 
@@ -163,6 +164,14 @@ export async function POST(request: Request) {
     body.temporary || body.status === "Phiếu tạm"
       ? OrderStatus.DRAFT
       : (body.status ? statusMap[body.status] : undefined) ?? OrderStatus.PROCESSING;
+  const extraChargeIds = Array.from(new Set(body.extraChargeIds?.filter(Boolean) ?? []));
+  const extraCharges =
+    status !== OrderStatus.DRAFT && extraChargeIds.length > 0
+      ? await prisma.extraCharge.findMany({
+          where: { id: { in: extraChargeIds }, isActive: true },
+        })
+      : [];
+  const extraChargeTotal = extraCharges.reduce((sum, charge) => sum + charge.amount, 0);
   const now = new Date();
   const order = await prisma.$transaction(async (tx) => {
     for (let attempt = 0; attempt < 3; attempt += 1) {
@@ -174,8 +183,13 @@ export async function POST(request: Request) {
             customerId: customer.id,
             status,
             subtotal,
-            total: subtotal,
-            paymentMethod: status === OrderStatus.DRAFT ? "Phiếu tạm" : "Chưa ghi nhận",
+            total: subtotal + extraChargeTotal,
+            paymentMethod:
+              status === OrderStatus.DRAFT
+                ? "Phiếu tạm"
+                : status === OrderStatus.PAID
+                  ? "Đã thanh toán"
+                  : "Chưa ghi nhận",
             items: {
               create: orderItems.map(({ product, quantity }) => ({
                 productId: product.id,
@@ -184,6 +198,13 @@ export async function POST(request: Request) {
                 sku: product.id.slice(-8).toUpperCase(),
                 quantity,
                 unitPrice: product.defaultPrice,
+              })),
+            },
+            extraCharges: {
+              create: extraCharges.map((charge) => ({
+                extraChargeId: charge.id,
+                name: charge.name,
+                amount: charge.amount,
               })),
             },
           },
