@@ -55,6 +55,12 @@ type ExtraCharge = {
   amount: number;
 };
 
+type QuickCreateProductForm = {
+  name: string;
+  defaultPrice: string;
+  note: string;
+};
+
 function parseCurrency(value: string) {
   return Number(value.replace(/\D/g, ""));
 }
@@ -125,6 +131,14 @@ export function CreateOrderClient({ initialPhone = "" }: { initialPhone?: string
   const [isSaving, setIsSaving] = useState(false);
   const [isPaying, setIsPaying] = useState(false);
   const [isMerging, setIsMerging] = useState(false);
+  const [isCreatingProduct, setIsCreatingProduct] = useState(false);
+  const [showQuickCreateProduct, setShowQuickCreateProduct] = useState(false);
+  const [quickCreateProductError, setQuickCreateProductError] = useState("");
+  const [quickCreateProduct, setQuickCreateProduct] = useState<QuickCreateProductForm>({
+    name: "",
+    defaultPrice: "",
+    note: "",
+  });
   const [submitError, setSubmitError] = useState("");
   const [printableOrder, setPrintableOrder] = useState<OrderDetail | null>(null);
 
@@ -302,6 +316,67 @@ export function CreateOrderClient({ initialPhone = "" }: { initialPhone?: string
     return true;
   }
 
+  function formatCurrencyInput(value: string) {
+    const digits = value.replace(/\D/g, "");
+    if (!digits) return "";
+    return new Intl.NumberFormat("vi-VN").format(Number(digits)) + "đ";
+  }
+
+  function resetQuickCreateProduct() {
+    setQuickCreateProduct({
+      name: "",
+      defaultPrice: "",
+      note: "",
+    });
+    setQuickCreateProductError("");
+    setShowQuickCreateProduct(false);
+  }
+
+  async function createProductQuickly() {
+    setQuickCreateProductError("");
+
+    const name = quickCreateProduct.name.trim();
+    const defaultPrice = Number(quickCreateProduct.defaultPrice.replace(/\D/g, ""));
+    if (!name || defaultPrice <= 0) {
+      setQuickCreateProductError("Tên sản phẩm và giá mặc định là bắt buộc.");
+      return;
+    }
+
+    setIsCreatingProduct(true);
+    const response = await fetch("/api/products", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name,
+        defaultPrice,
+        note: quickCreateProduct.note.trim(),
+      }),
+    });
+
+    if (!response.ok) {
+      const payload = (await response.json()) as { error?: string };
+      setQuickCreateProductError(payload.error ?? "Không thể tạo sản phẩm mới.");
+      setIsCreatingProduct(false);
+      return;
+    }
+
+    const payload = (await response.json()) as {
+      data: { id: string; name: string; defaultPrice: number; note: string | null };
+    };
+    const nextProduct: ProductOption = {
+      id: payload.data.id,
+      name: payload.data.name,
+      price: formatCurrency(payload.data.defaultPrice),
+      note: payload.data.note ?? "",
+    };
+
+    setProducts((current) => [nextProduct, ...current]);
+    updateDraftItem(nextProduct, 1);
+    setProductSearch(payload.data.name);
+    resetQuickCreateProduct();
+    setIsCreatingProduct(false);
+  }
+
   async function saveTempOrder() {
     setSubmitError("");
     if (isSaving || isPaying || !validateCurrentDraft()) return;
@@ -417,340 +492,434 @@ export function CreateOrderClient({ initialPhone = "" }: { initialPhone?: string
     <>
       {printableOrder ? <PrintableReceipt order={printableOrder} /> : null}
       <div className="screen-only grid gap-5 xl:grid-cols-[minmax(0,1fr)_400px] xl:gap-8">
-      <div className="space-y-5 md:space-y-6">
-        <Card className="p-4 md:p-6">
-          <div className="mb-5">
-            <h2 className="text-lg font-semibold md:text-xl">Thông tin khách hàng</h2>
-            <p className="mt-1 text-sm text-secondary-neutral-gray">
-              Gõ tên và số điện thoại để lưu phiếu tạm cho khách.
-            </p>
-          </div>
-          <div className="grid gap-5 md:grid-cols-2">
-            <Field
-              label="Số điện thoại"
-              value={phone}
-              type="tel"
-              inputMode="numeric"
-              autoComplete="tel"
-              onChange={(value) => {
-                const nextPhone = normalizePhoneInput(value);
-                setPhone(nextPhone);
-                setPhoneTouched(true);
-                setShowCustomerSuggestions(true);
-                if (!isValidVietnamPhone(nextPhone)) {
-                  setTempOrders([]);
-                  setSelectedTempOrders([]);
-                }
-              }}
-              required
-            />
-            <Field label="Họ và tên" value={customerName} onChange={setCustomerName} required />
-          </div>
+        <div className="space-y-5 md:space-y-6">
+          <Card className="p-4 md:p-6">
+            <div className="mb-5">
+              <h2 className="text-lg font-semibold md:text-xl">Thông tin khách hàng</h2>
+              <p className="mt-1 text-sm text-secondary-neutral-gray">
+                Gõ tên và số điện thoại để lưu phiếu tạm cho khách.
+              </p>
+            </div>
+            <div className="grid gap-5 md:grid-cols-2">
+              <Field
+                label="Số điện thoại"
+                value={phone}
+                type="tel"
+                inputMode="numeric"
+                autoComplete="tel"
+                onChange={(value) => {
+                  const nextPhone = normalizePhoneInput(value);
+                  setPhone(nextPhone);
+                  setPhoneTouched(true);
+                  setShowCustomerSuggestions(true);
+                  if (!isValidVietnamPhone(nextPhone)) {
+                    setTempOrders([]);
+                    setSelectedTempOrders([]);
+                  }
+                }}
+                required
+              />
+              <Field label="Họ và tên" value={customerName} onChange={setCustomerName} required />
+            </div>
 
-          <div className="mt-4 space-y-2">
-            {phoneTouched && phone.length > 0 && !phoneIsValid ? (
-              <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-error">
-                Số điện thoại chưa hợp lệ. Chỉ chấp nhận số di động Việt Nam gồm 10 chữ số.
+            <div className="mt-4 space-y-2">
+              {phoneTouched && phone.length > 0 && !phoneIsValid ? (
+                <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-error">
+                  Số điện thoại chưa hợp lệ. Chỉ chấp nhận số di động Việt Nam gồm 10 chữ số.
+                </div>
+              ) : null}
+              {isSearchingCustomers ? (
+                <div className="inline-flex items-center gap-2 text-sm text-secondary-neutral-gray">
+                  <LoaderCircle size={16} className="animate-spin" />
+                  Đang tìm khách hàng...
+                </div>
+              ) : null}
+              {showCustomerSuggestions && customerSuggestions.length > 0 ? (
+                <div className="grid gap-2 md:grid-cols-2">
+                  {customerSuggestions.map((customer) => (
+                    <button
+                      key={customer.id}
+                      className="rounded-xl bg-surface-container-low px-4 py-3 text-left transition hover:bg-surface-container"
+                      onClick={() => selectCustomer(customer)}
+                    >
+                      <span className="block font-medium">{customer.name}</span>
+                      <span className="text-sm text-secondary-neutral-gray">
+                        {customer.phone} • {customer.summary}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+              {shouldShowNewCustomer ? (
+                <div className="rounded-xl border border-dashed border-action-blue/30 bg-blue-50 px-4 py-3 text-sm">
+                  <span className="font-medium text-action-blue">
+                    Không tìm thấy khách hàng hiện có.
+                  </span>
+                  <span className="mt-1 block text-on-surface-variant">
+                    Khi lưu phiếu tạm, hệ thống sẽ tạo khách mới với số {normalizedPhone}.
+                  </span>
+                </div>
+              ) : null}
+            </div>
+          </Card>
+
+          <Card className="p-4 md:p-6">
+            <div className="mb-5">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h2 className="text-lg font-semibold md:text-xl">Sản phẩm đang đặt</h2>
+                </div>
+              </div>
+              <div className="relative mt-4">
+                <Search
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-secondary-neutral-gray"
+                  size={20}
+                />
+                <input
+                  className="focus-ring h-11 w-full rounded-full border border-soft-border-gray bg-white pl-10 pr-4"
+                  placeholder="Tìm sản phẩm để thêm vào phiếu"
+                  value={productSearch}
+                  onChange={(event) => setProductSearch(event.target.value)}
+                />
+              </div>
+              <div className="mt-3 text-sm text-secondary-neutral-gray">
+                {keyword
+                  ? filteredProducts.length > 0
+                    ? `Tìm thấy ${filteredProducts.length} sản phẩm phù hợp`
+                    : `Không tìm thấy sản phẩm cho "${productSearch.trim()}"`
+                  : "Search hỗ trợ không dấu và chữ cái đầu, ví dụ ats cho áo thun size."}
+              </div>
+            </div>
+
+            {showQuickCreateProduct ? (
+              <div className="mb-6 rounded-xl border border-soft-border-gray bg-surface-container-low p-4">
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <div>
+                    <h3 className="font-semibold">Tạo sản phẩm nhanh</h3>
+                    <p className="mt-1 text-sm text-secondary-neutral-gray">
+                      Lưu xong sẽ tự thêm vào phiếu đang nhập.
+                    </p>
+                  </div>
+                  <button
+                    className="text-sm font-medium text-secondary-neutral-gray hover:text-near-black-ink"
+                    onClick={resetQuickCreateProduct}
+                  >
+                    Hủy
+                  </button>
+                </div>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <Field
+                    label="Tên sản phẩm"
+                    value={quickCreateProduct.name}
+                    onChange={(value) =>
+                      setQuickCreateProduct((current) => ({ ...current, name: value }))
+                    }
+                    required
+                  />
+                  <Field
+                    label="Giá mặc định"
+                    value={quickCreateProduct.defaultPrice}
+                    onChange={(value) =>
+                      setQuickCreateProduct((current) => ({
+                        ...current,
+                        defaultPrice: formatCurrencyInput(value),
+                      }))
+                    }
+                    inputMode="numeric"
+                    required
+                  />
+                </div>
+                <label className="mt-4 block">
+                  <span className="mb-2 block text-sm font-medium text-on-surface-variant">
+                    Ghi chú
+                  </span>
+                  <textarea
+                    className="focus-ring min-h-24 w-full rounded-xl border border-soft-border-gray bg-white px-4 py-3"
+                    placeholder="Mô tả ngắn sản phẩm"
+                    value={quickCreateProduct.note}
+                    onChange={(event) =>
+                      setQuickCreateProduct((current) => ({
+                        ...current,
+                        note: event.target.value,
+                      }))
+                    }
+                  />
+                </label>
+                <div className="mt-4 flex flex-wrap justify-end gap-3">
+                  <Button variant="secondary" onClick={resetQuickCreateProduct}>
+                    Hủy
+                  </Button>
+                  <Button onClick={() => void createProductQuickly()}>
+                    {isCreatingProduct ? (
+                      <LoaderCircle size={17} className="animate-spin" />
+                    ) : (
+                      <PackagePlus size={17} />
+                    )}
+                    Lưu và thêm vào phiếu
+                  </Button>
+                </div>
+                {quickCreateProductError ? (
+                  <div className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-error">
+                    {quickCreateProductError}
+                  </div>
+                ) : null}
               </div>
             ) : null}
-            {isSearchingCustomers ? (
+
+            {isLoadingProducts ? (
               <div className="inline-flex items-center gap-2 text-sm text-secondary-neutral-gray">
                 <LoaderCircle size={16} className="animate-spin" />
-                Đang tìm khách hàng...
+                Đang tải sản phẩm...
               </div>
-            ) : null}
-            {showCustomerSuggestions && customerSuggestions.length > 0 ? (
-              <div className="grid gap-2 md:grid-cols-2">
-                {customerSuggestions.map((customer) => (
+            ) : filteredProducts.length > 0 ? (
+              <div className="mb-6 grid gap-3">
+                {filteredProducts.map((product) => (
                   <button
-                    key={customer.id}
-                    className="rounded-xl bg-surface-container-low px-4 py-3 text-left transition hover:bg-surface-container"
-                    onClick={() => selectCustomer(customer)}
+                    key={product.id}
+                    className="flex w-full items-center justify-between rounded-xl bg-surface-container-low px-4 py-3 text-left transition hover:bg-surface-container"
+                    onClick={() => updateDraftItem(product, 1)}
                   >
-                    <span className="block font-medium">{customer.name}</span>
-                    <span className="text-sm text-secondary-neutral-gray">
-                      {customer.phone} • {customer.summary}
+                    <span className="min-w-0">
+                      <span className="block font-medium">{product.name}</span>
+                      <span className="text-sm text-secondary-neutral-gray">{product.note}</span>
+                    </span>
+                    <span className="ml-4 shrink-0 font-semibold text-action-blue">
+                      {product.price}
                     </span>
                   </button>
                 ))}
               </div>
-            ) : null}
-            {shouldShowNewCustomer ? (
-              <div className="rounded-xl border border-dashed border-action-blue/30 bg-blue-50 px-4 py-3 text-sm">
-                <span className="font-medium text-action-blue">
-                  Không tìm thấy khách hàng hiện có.
-                </span>
-                <span className="mt-1 block text-on-surface-variant">
-                  Khi lưu phiếu tạm, hệ thống sẽ tạo khách mới với số {normalizedPhone}.
-                </span>
-              </div>
-            ) : null}
-          </div>
-        </Card>
-
-        <Card className="p-4 md:p-6">
-          <div className="mb-5">
-            <h2 className="text-lg font-semibold md:text-xl">Sản phẩm đang đặt</h2>
-            <div className="relative mt-4">
-              <Search
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-secondary-neutral-gray"
-                size={20}
-              />
-              <input
-                className="focus-ring h-11 w-full rounded-full border border-soft-border-gray bg-white pl-10 pr-4"
-                placeholder="Tìm sản phẩm để thêm vào phiếu"
-                value={productSearch}
-                onChange={(event) => setProductSearch(event.target.value)}
-              />
-            </div>
-            <div className="mt-3 text-sm text-secondary-neutral-gray">
-              {keyword
-                ? filteredProducts.length > 0
-                  ? `Tìm thấy ${filteredProducts.length} sản phẩm phù hợp`
-                  : `Không tìm thấy sản phẩm cho "${productSearch.trim()}"`
-                : "Search hỗ trợ không dấu và chữ cái đầu, ví dụ ats cho áo thun size."}
-            </div>
-          </div>
-
-          {isLoadingProducts ? (
-            <div className="inline-flex items-center gap-2 text-sm text-secondary-neutral-gray">
-              <LoaderCircle size={16} className="animate-spin" />
-              Đang tải sản phẩm...
-            </div>
-          ) : filteredProducts.length > 0 ? (
-            <div className="mb-6 grid gap-3">
-              {filteredProducts.map((product) => (
-                <button
-                  key={product.id}
-                  className="flex w-full items-center justify-between rounded-xl bg-surface-container-low px-4 py-3 text-left transition hover:bg-surface-container"
-                  onClick={() => updateDraftItem(product, 1)}
+            ) : (
+              <div className="mb-6 rounded-xl border border-dashed border-soft-border-gray bg-surface-container-low px-5 py-8 text-center md:px-6 md:py-10">
+                <Search className="mx-auto mb-3 text-secondary-neutral-gray" size={20} />
+                <p className="font-medium text-on-surface">Không có sản phẩm phù hợp</p>
+                <Button
+                  variant="secondary"
+                  className="mt-4"
+                  onClick={() => {
+                    setQuickCreateProduct((current) => ({
+                      ...current,
+                      name: productSearch.trim(),
+                    }));
+                    setQuickCreateProductError("");
+                    setShowQuickCreateProduct(true);
+                  }}
                 >
-                  <span className="min-w-0">
-                    <span className="block font-medium">{product.name}</span>
-                    <span className="text-sm text-secondary-neutral-gray">{product.note}</span>
-                  </span>
-                  <span className="ml-4 shrink-0 font-semibold text-action-blue">
-                    {product.price}
-                  </span>
-                </button>
-              ))}
-            </div>
-          ) : (
-            <div className="mb-6 rounded-xl border border-dashed border-soft-border-gray bg-surface-container-low px-5 py-8 text-center md:px-6 md:py-10">
-              <Search className="mx-auto mb-3 text-secondary-neutral-gray" size={20} />
-              <p className="font-medium text-on-surface">Không có sản phẩm phù hợp</p>
-            </div>
-          )}
-
-          {draftItems.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-soft-border-gray bg-surface-container-low px-5 py-10 text-center md:px-6 md:py-14">
-              <ShoppingBasket className="mx-auto mb-4 text-secondary-neutral-gray" />
-              <h3 className="font-semibold text-on-surface">Phiếu tạm chưa có sản phẩm</h3>
-              <p className="mt-2 text-sm text-secondary-neutral-gray">
-                Chọn sản phẩm phía trên để thêm vào phiếu đang nhập.
-              </p>
-            </div>
-          ) : (
-            <div className="overflow-hidden rounded-xl border border-soft-border-gray">
-              <div className="flex items-center justify-between bg-surface-container-low px-4 py-3 text-sm font-semibold">
-                <span>Phiếu đang nhập</span>
-                <button
-                  className="rounded-full p-1 text-secondary-neutral-gray transition hover:bg-white hover:text-error"
-                  onClick={resetDraft}
-                  aria-label="Xóa sản phẩm đang nhập"
-                >
-                  <Trash2 size={16} />
-                </button>
+                  <Plus size={16} />
+                  Tạo sản phẩm mới
+                </Button>
               </div>
-              <div className="divide-y divide-soft-border-gray">
-                {draftItems.map((item) => (
-                  <div
-                    key={item.productId}
-                    className="grid gap-4 px-4 py-4 md:grid-cols-[1fr_120px_120px_36px] md:items-center"
+            )}
+
+            {draftItems.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-soft-border-gray bg-surface-container-low px-5 py-10 text-center md:px-6 md:py-14">
+                <ShoppingBasket className="mx-auto mb-4 text-secondary-neutral-gray" />
+                <h3 className="font-semibold text-on-surface">Phiếu tạm chưa có sản phẩm</h3>
+                <p className="mt-2 text-sm text-secondary-neutral-gray">
+                  Chọn sản phẩm phía trên để thêm vào phiếu đang nhập.
+                </p>
+              </div>
+            ) : (
+              <div className="overflow-hidden rounded-xl border border-soft-border-gray">
+                <div className="flex items-center justify-between bg-surface-container-low px-4 py-3 text-sm font-semibold">
+                  <span>Phiếu đang nhập</span>
+                  <button
+                    className="rounded-full p-1 text-secondary-neutral-gray transition hover:bg-white hover:text-error"
+                    onClick={resetDraft}
+                    aria-label="Xóa sản phẩm đang nhập"
                   >
-                    <div className="min-w-0">
-                      <p className="font-medium">{item.name}</p>
-                      <p className="text-sm text-secondary-neutral-gray">
-                        {formatCurrency(item.unitPrice)}
-                      </p>
-                    </div>
-                    <div className="inline-flex h-9 w-fit items-center rounded-full bg-surface-container">
-                      <button
-                        className="grid h-9 w-9 place-items-center"
-                        onClick={() => updateDraftQuantity(item.productId, item.quantity - 1)}
-                        aria-label={`Giảm số lượng ${item.name}`}
-                      >
-                        <Minus size={15} />
-                      </button>
-                      <input
-                        className="h-9 w-11 bg-transparent text-center text-sm font-semibold outline-none"
-                        inputMode="numeric"
-                        value={item.quantity}
-                        onChange={(event) => {
-                          const digits = event.target.value.replace(/\D/g, "");
-                          if (!digits) return;
-                          updateDraftQuantity(item.productId, Math.max(1, Number(digits)));
-                        }}
-                        aria-label={`Số lượng ${item.name}`}
-                      />
-                      <button
-                        className="grid h-9 w-9 place-items-center"
-                        onClick={() => updateDraftQuantity(item.productId, item.quantity + 1)}
-                        aria-label={`Tăng số lượng ${item.name}`}
-                      >
-                        <Plus size={15} />
-                      </button>
-                    </div>
-                    <p className="font-semibold">
-                      {formatCurrency(item.unitPrice * item.quantity)}
-                    </p>
-                    <button
-                      className="grid h-9 w-9 place-items-center rounded-full bg-red-50 text-error"
-                      onClick={() => updateDraftQuantity(item.productId, 0)}
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+                <div className="divide-y divide-soft-border-gray">
+                  {draftItems.map((item) => (
+                    <div
+                      key={item.productId}
+                      className="grid gap-4 px-4 py-4 md:grid-cols-[1fr_120px_120px_36px] md:items-center"
                     >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-                ))}
+                      <div className="min-w-0">
+                        <p className="font-medium">{item.name}</p>
+                        <p className="text-sm text-secondary-neutral-gray">
+                          {formatCurrency(item.unitPrice)}
+                        </p>
+                      </div>
+                      <div className="inline-flex h-9 w-fit items-center rounded-full bg-surface-container">
+                        <button
+                          className="grid h-9 w-9 place-items-center"
+                          onClick={() => updateDraftQuantity(item.productId, item.quantity - 1)}
+                          aria-label={`Giảm số lượng ${item.name}`}
+                        >
+                          <Minus size={15} />
+                        </button>
+                        <input
+                          className="h-9 w-11 bg-transparent text-center text-sm font-semibold outline-none"
+                          inputMode="numeric"
+                          value={item.quantity}
+                          onChange={(event) => {
+                            const digits = event.target.value.replace(/\D/g, "");
+                            if (!digits) return;
+                            updateDraftQuantity(item.productId, Math.max(1, Number(digits)));
+                          }}
+                          aria-label={`Số lượng ${item.name}`}
+                        />
+                        <button
+                          className="grid h-9 w-9 place-items-center"
+                          onClick={() => updateDraftQuantity(item.productId, item.quantity + 1)}
+                          aria-label={`Tăng số lượng ${item.name}`}
+                        >
+                          <Plus size={15} />
+                        </button>
+                      </div>
+                      <p className="font-semibold">
+                        {formatCurrency(item.unitPrice * item.quantity)}
+                      </p>
+                      <button
+                        className="grid h-9 w-9 place-items-center rounded-full bg-red-50 text-error"
+                        onClick={() => updateDraftQuantity(item.productId, 0)}
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
-        </Card>
-      </div>
+            )}
+          </Card>
+        </div>
 
-      <div className="space-y-5 md:space-y-6">
-        <Card className="p-4 md:p-6">
-          <h2 className="mb-5 text-lg font-semibold md:text-xl">Tóm tắt phiếu đang nhập</h2>
-          <div className="space-y-4 text-sm">
-            <Row label="Khách hàng" value={customerName || "Chưa nhập"} />
-            <Row label="Số điện thoại" value={normalizedPhone || "Chưa nhập"} />
-            <Row label="Số sản phẩm" value={`${draftItems.length}`} />
-            <Row label="Tổng số lượng" value={`${totalQuantity}`} />
-            <Row label="Tổng tiền hàng" value={formatCurrency(subtotal)} strong />
-            {selectedExtraChargeTotal > 0 ? (
-              <Row label="Thu khác" value={formatCurrency(selectedExtraChargeTotal)} />
+        <div className="space-y-5 md:space-y-6">
+          <Card className="p-4 md:p-6">
+            <h2 className="mb-5 text-lg font-semibold md:text-xl">Tóm tắt phiếu đang nhập</h2>
+            <div className="space-y-4 text-sm">
+              <Row label="Khách hàng" value={customerName || "Chưa nhập"} />
+              <Row label="Số điện thoại" value={normalizedPhone || "Chưa nhập"} />
+              <Row label="Số sản phẩm" value={`${draftItems.length}`} />
+              <Row label="Tổng số lượng" value={`${totalQuantity}`} />
+              <Row label="Tổng tiền hàng" value={formatCurrency(subtotal)} strong />
+              {selectedExtraChargeTotal > 0 ? (
+                <Row label="Thu khác" value={formatCurrency(selectedExtraChargeTotal)} />
+              ) : null}
+              <Row label="Tổng thanh toán" value={formatCurrency(paymentTotal)} strong />
+            </div>
+            {extraCharges.length > 0 ? (
+              <ExtraChargeSelector
+                charges={extraCharges}
+                selectedIds={selectedExtraCharges}
+                total={selectedExtraChargeTotal}
+                onChange={setSelectedExtraCharges}
+              />
             ) : null}
-            <Row label="Tổng thanh toán" value={formatCurrency(paymentTotal)} strong />
-          </div>
-          {extraCharges.length > 0 ? (
-            <ExtraChargeSelector
-              charges={extraCharges}
-              selectedIds={selectedExtraCharges}
-              total={selectedExtraChargeTotal}
-              onChange={setSelectedExtraCharges}
-            />
-          ) : null}
-          <div className="mt-8 grid gap-3 sm:grid-cols-2">
-            <Button variant="secondary"
-              onClick={() => void saveTempOrder()} className="w-full">
-              {isSaving ? (
-                <LoaderCircle size={17} className="animate-spin" />
-              ) : (
-                <PackagePlus size={17} />
-              )}
-              Lưu tạm
-            </Button>
-            <Button
-              onClick={() => void payCurrentOrder()}
-              className="w-full"
-            >
-              {isPaying ? (
-                <LoaderCircle size={17} className="animate-spin" />
-              ) : (
-                <CreditCard size={17} />
-              )}
-              Thanh toán
-            </Button>
-          </div>
-          {submitError ? (
-            <div className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-error">
-              {submitError}
-            </div>
-          ) : null}
-        </Card>
-
-        <Card className="p-4 md:p-6">
-          <div className="mb-5 flex items-start justify-between gap-3">
-            <div>
-              <h2 className="text-lg font-semibold md:text-xl">Phiếu tạm của khách</h2>
-              <p className="mt-1 text-sm text-secondary-neutral-gray">
-                Chọn 1 phiếu để chốt đơn, hoặc chọn nhiều phiếu cùng SĐT để gộp khi chuẩn bị ship.
-              </p>
-            </div>
-            <Button
-              variant="secondary"
-              className="h-9 shrink-0 px-4"
-              onClick={() => {
-                setPhone("");
-                setCustomerName("");
-                setPhoneTouched(false);
-                setSelectedTempOrders([]);
-                setTempOrders([]);
-              }}
-            >
-              <UserPlus size={16} />
-              Khách mới
-            </Button>
-          </div>
-
-          {isLoadingTempOrders ? (
-            <div className="inline-flex items-center gap-2 text-sm text-secondary-neutral-gray">
-              <LoaderCircle size={16} className="animate-spin" />
-              Đang tải phiếu tạm...
-            </div>
-          ) : tempOrders.length > 0 ? (
-            <div className="space-y-3">
-              {tempOrders.map((order) => {
-                const checked = selectedTempOrders.includes(order.id);
-                return (
-                  <button
-                    key={order.id}
-                    className={`w-full rounded-xl border px-4 py-3 text-left transition ${checked
-                      ? "border-action-blue bg-blue-50"
-                      : "border-soft-border-gray bg-white hover:bg-surface-container-low"
-                      }`}
-                    onClick={() =>
-                      setSelectedTempOrders((current) =>
-                        current.includes(order.id)
-                          ? current.filter((code) => code !== order.id)
-                          : [...current, order.id],
-                      )
-                    }
-                  >
-                    <span className="mb-2 flex items-center justify-between gap-3">
-                      <span className="font-mono text-sm">{order.id}</span>
-                      <StatusBadge status={order.status} />
-                    </span>
-                    <span className="block font-semibold">{order.total}</span>
-                    <span className="mt-1 block text-sm text-secondary-neutral-gray">
-                      {order.time} • {order.items || "Chưa có sản phẩm"}
-                    </span>
-                  </button>
-                );
-              })}
-              <Button
-                className="mt-2 w-full"
-                onClick={() => void mergeSelectedOrders()}
-              >
-                {isMerging ? (
+            <div className="mt-8 grid gap-3 sm:grid-cols-2">
+              <Button variant="secondary"
+                onClick={() => void saveTempOrder()} className="w-full">
+                {isSaving ? (
                   <LoaderCircle size={17} className="animate-spin" />
                 ) : (
-                  <CheckSquare size={17} />
+                  <PackagePlus size={17} />
                 )}
-                {selectedTempOrders.length <= 1
-                  ? "Chốt phiếu tạm"
-                  : `Gộp ${selectedTempOrders.length} phiếu tạm`}
+                Lưu tạm
+              </Button>
+              <Button
+                onClick={() => void payCurrentOrder()}
+                className="w-full"
+              >
+                {isPaying ? (
+                  <LoaderCircle size={17} className="animate-spin" />
+                ) : (
+                  <CreditCard size={17} />
+                )}
+                Thanh toán
               </Button>
             </div>
-          ) : (
-            <div className="rounded-xl border border-dashed border-soft-border-gray bg-surface-container-low px-4 py-6 text-sm text-secondary-neutral-gray md:px-5 md:py-8">
-              {phoneIsValid
-                ? "Khách này chưa có phiếu tạm nào."
-                : "Nhập hoặc chọn khách để xem các phiếu tạm đang mở."}
+            {submitError ? (
+              <div className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-error">
+                {submitError}
+              </div>
+            ) : null}
+          </Card>
+
+          <Card className="p-4 md:p-6">
+            <div className="mb-5 flex items-start justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-semibold md:text-xl">Phiếu tạm của khách</h2>
+                <p className="mt-1 text-sm text-secondary-neutral-gray">
+                  Chọn 1 phiếu để chốt đơn, hoặc chọn nhiều phiếu cùng SĐT để gộp khi chuẩn bị ship.
+                </p>
+              </div>
+              <Button
+                variant="secondary"
+                className="h-9 shrink-0 px-4"
+                onClick={() => {
+                  setPhone("");
+                  setCustomerName("");
+                  setPhoneTouched(false);
+                  setSelectedTempOrders([]);
+                  setTempOrders([]);
+                }}
+              >
+                <UserPlus size={16} />
+                Khách mới
+              </Button>
             </div>
-          )}
-        </Card>
-      </div>
+
+            {isLoadingTempOrders ? (
+              <div className="inline-flex items-center gap-2 text-sm text-secondary-neutral-gray">
+                <LoaderCircle size={16} className="animate-spin" />
+                Đang tải phiếu tạm...
+              </div>
+            ) : tempOrders.length > 0 ? (
+              <div className="space-y-3">
+                {tempOrders.map((order) => {
+                  const checked = selectedTempOrders.includes(order.id);
+                  return (
+                    <button
+                      key={order.id}
+                      className={`w-full rounded-xl border px-4 py-3 text-left transition ${checked
+                        ? "border-action-blue bg-blue-50"
+                        : "border-soft-border-gray bg-white hover:bg-surface-container-low"
+                        }`}
+                      onClick={() =>
+                        setSelectedTempOrders((current) =>
+                          current.includes(order.id)
+                            ? current.filter((code) => code !== order.id)
+                            : [...current, order.id],
+                        )
+                      }
+                    >
+                      <span className="mb-2 flex items-center justify-between gap-3">
+                        <span className="font-mono text-sm">{order.id}</span>
+                        <StatusBadge status={order.status} />
+                      </span>
+                      <span className="block font-semibold">{order.total}</span>
+                      <span className="mt-1 block text-sm text-secondary-neutral-gray">
+                        {order.time} • {order.items || "Chưa có sản phẩm"}
+                      </span>
+                    </button>
+                  );
+                })}
+                <Button
+                  className="mt-2 w-full"
+                  onClick={() => void mergeSelectedOrders()}
+                >
+                  {isMerging ? (
+                    <LoaderCircle size={17} className="animate-spin" />
+                  ) : (
+                    <CheckSquare size={17} />
+                  )}
+                  {selectedTempOrders.length <= 1
+                    ? "Chốt phiếu tạm"
+                    : `Gộp ${selectedTempOrders.length} phiếu tạm`}
+                </Button>
+              </div>
+            ) : (
+              <div className="rounded-xl border border-dashed border-soft-border-gray bg-surface-container-low px-4 py-6 text-sm text-secondary-neutral-gray md:px-5 md:py-8">
+                {phoneIsValid
+                  ? "Khách này chưa có phiếu tạm nào."
+                  : "Nhập hoặc chọn khách để xem các phiếu tạm đang mở."}
+              </div>
+            )}
+          </Card>
+        </div>
       </div>
     </>
   );
