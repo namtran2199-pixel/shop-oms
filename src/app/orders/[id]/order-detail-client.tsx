@@ -221,6 +221,21 @@ export function PrintableReceipt({ order }: { order: OrderDetail }) {
       <h1>{order.store.name}</h1>
       <p className="receipt-date">{order.receiptLongDateLabel}</p>
 
+      <div className="receipt-qr">
+        <p className="receipt-qr-label">Quét mã chuyển khoản:</p>
+        {order.store.qrCodeImageUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            className="receipt-qr-image"
+            src={order.store.qrCodeImageUrl}
+            alt="QR chuyển khoản"
+            loading="eager"
+          />
+        ) : (
+          <div className="receipt-qr-placeholder">{order.code}</div>
+        )}
+      </div>
+
       <div className="receipt-customer">
         <p>
           <strong>Khách hàng:</strong> {order.customer.name}
@@ -276,18 +291,6 @@ export function PrintableReceipt({ order }: { order: OrderDetail }) {
         <span>TỔNG:</span>
         <span>{formatReceiptMoney(order.totalValue)}</span>
       </p>
-      <p className="receipt-qr-label">Quét mã chuyển khoản:</p>
-      {order.store.qrCodeImageUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          className="receipt-qr-image"
-          src={order.store.qrCodeImageUrl}
-          alt="QR chuyển khoản"
-          loading="eager"
-        />
-      ) : (
-        <div className="receipt-qr-placeholder">{order.code}</div>
-      )}
     </section>
   );
 }

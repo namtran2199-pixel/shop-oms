@@ -169,9 +169,15 @@ textarea:disabled {
   }
 
   .receipt-date {
-    margin: 0 0 14px;
+    margin: 0 0 8px;
     text-align: center;
     font-size: 15px;
+  }
+
+  .receipt-qr {
+    margin: 0 0 12px;
+    text-align: center;
+    break-inside: avoid;
   }
 
   .receipt-customer {
@@ -263,7 +269,7 @@ textarea:disabled {
   }
 
   .receipt-qr-label {
-    margin: 0 0 6px;
+    margin: 0 0 5px;
     text-align: center;
     font-size: 16px;
     font-weight: 700;
