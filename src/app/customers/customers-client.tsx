@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Search, Trash2, TrendingUp } from "lucide-react";
+import { Pencil, Plus, Search, Trash2, TrendingUp } from "lucide-react";
 import { Button, Card, PaginationFooter, StatusBadge, TableCard } from "@/components/ui";
 
 type CustomerListItem = {
@@ -70,6 +70,13 @@ export function CustomersClient() {
   const [isCreating, setIsCreating] = useState(false);
   const [deleteError, setDeleteError] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showEditForm, setShowEditForm] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editPhone, setEditPhone] = useState("");
+  const [editEmail, setEditEmail] = useState("");
+  const [editAddress, setEditAddress] = useState("");
+  const [editError, setEditError] = useState("");
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -103,6 +110,12 @@ export function CustomersClient() {
       if (active) {
         setData(payload.data);
         setDeleteError("");
+        if (payload.data.selectedCustomer && !showEditForm) {
+          setEditName(payload.data.selectedCustomer.name);
+          setEditPhone(payload.data.selectedCustomer.phone);
+          setEditEmail(payload.data.selectedCustomer.email ?? "");
+          setEditAddress(payload.data.selectedCustomer.address ?? "");
+        }
         setIsLoading(false);
       }
     }
@@ -114,7 +127,7 @@ export function CustomersClient() {
     return () => {
       active = false;
     };
-  }, [query]);
+  }, [query, showEditForm]);
 
   const summary =
     data.meta.total === 0
@@ -208,6 +221,79 @@ export function CustomersClient() {
     setIsDeleting(false);
   }
 
+  function startEditingCustomer() {
+    if (!data.selectedCustomer) return;
+    setEditName(data.selectedCustomer.name);
+    setEditPhone(data.selectedCustomer.phone);
+    setEditEmail(data.selectedCustomer.email ?? "");
+    setEditAddress(data.selectedCustomer.address ?? "");
+    setEditError("");
+    setShowEditForm(true);
+  }
+
+  function cancelEditingCustomer() {
+    setShowEditForm(false);
+    setEditError("");
+    if (!data.selectedCustomer) return;
+    setEditName(data.selectedCustomer.name);
+    setEditPhone(data.selectedCustomer.phone);
+    setEditEmail(data.selectedCustomer.email ?? "");
+    setEditAddress(data.selectedCustomer.address ?? "");
+  }
+
+  async function updateCustomer() {
+    if (!data.selectedCustomer || isSavingEdit) return;
+
+    setEditError("");
+    setIsSavingEdit(true);
+    const response = await fetch(`/api/customers/${data.selectedCustomer.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: editName,
+        phone: editPhone,
+        email: editEmail,
+        address: editAddress,
+      }),
+    });
+    const payload = (await response.json()) as {
+      data?: { id: string; name: string; phone: string; email: string | null; address: string | null };
+      error?: string;
+    };
+
+    if (!response.ok || !payload.data) {
+      setEditError(payload.error ?? "Không thể cập nhật khách hàng.");
+      setIsSavingEdit(false);
+      return;
+    }
+
+    const updatedCustomer = payload.data;
+    setData((current) => ({
+      ...current,
+      customers: current.customers.map((customer) =>
+        customer.id === updatedCustomer.id
+          ? {
+            ...customer,
+            name: updatedCustomer.name,
+            phone: updatedCustomer.phone,
+            address: updatedCustomer.address,
+          }
+          : customer,
+      ),
+      selectedCustomer: current.selectedCustomer
+        ? {
+          ...current.selectedCustomer,
+          name: updatedCustomer.name,
+          phone: updatedCustomer.phone,
+          email: updatedCustomer.email,
+          address: updatedCustomer.address,
+        }
+        : current.selectedCustomer,
+    }));
+    setShowEditForm(false);
+    setIsSavingEdit(false);
+  }
+
   return (
     <div className="grid min-w-0 gap-6 xl:grid-cols-[380px_minmax(0,1fr)] xl:gap-8">
       <Card className="min-w-0 overflow-hidden">
@@ -253,11 +339,10 @@ export function CustomersClient() {
           {data.customers.map((customer, index) => (
             <div
               key={customer.id}
-              className={`px-5 py-4 transition hover:bg-surface-container-low ${
-                data.selectedCustomer?.id === customer.id || (!data.selectedCustomer && index === 0)
-                  ? "bg-surface-container-low"
-                  : "bg-white"
-              }`}
+              className={`px-5 py-4 transition hover:bg-surface-container-low ${data.selectedCustomer?.id === customer.id || (!data.selectedCustomer && index === 0)
+                ? "bg-surface-container-low"
+                : "bg-white"
+                }`}
             >
               <div className="flex items-start justify-between gap-3">
                 <button className="min-w-0 flex-1 text-left" onClick={() => setSelectedId(customer.id)}>
@@ -365,17 +450,30 @@ export function CustomersClient() {
         {!showCreateForm ? (
           <>
             <Card className="p-6">
-              <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
-                <div className="min-w-0">
-                  <h1 className="text-2xl font-semibold leading-tight text-near-black-ink sm:text-[32px]">
-                    {data.selectedCustomer?.name ?? "Chưa có khách hàng"}
-                  </h1>
-                  <div className="mt-3 space-y-1 text-sm text-secondary-neutral-gray">
-                    <p>{data.selectedCustomer?.phone ?? "Chưa có số điện thoại"}</p>
-                    <p>{data.selectedCustomer?.address ?? "Chưa có địa chỉ"}</p>
-                    {data.selectedCustomer?.email ? <p>{data.selectedCustomer.email}</p> : null}
+              <div className="flex flex-col gap-6">
+                <div className="flex flex-col gap-4 border-b border-soft-border-gray pb-5">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium uppercase tracking-wide text-secondary-neutral-gray">
+                      Hồ sơ khách hàng
+                    </p>
+                    {showEditForm ? (
+                      <>
+                        <h1 className="mt-2 text-2xl font-semibold leading-tight text-near-black-ink sm:text-[32px]">
+                          Chỉnh sửa thông tin khách
+                        </h1>
+                        <p className="mt-2 text-sm text-secondary-neutral-gray">
+                          Cập nhật nhanh hồ sơ khách hàng để đồng bộ cho các đơn hàng tiếp theo.
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <h1 className="mt-2 text-2xl font-semibold leading-tight text-near-black-ink sm:text-[32px]">
+                          {data.selectedCustomer?.name ?? "Chưa có khách hàng"}
+                        </h1>
+                      </>
+                    )}
                   </div>
-                  <div className="mt-5 grid grid-cols-1 gap-3 sm:flex sm:flex-wrap">
+                  <div className="flex flex-nowrap items-center gap-3 overflow-x-auto">
                     <Link
                       href="/orders/new"
                       className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-action-blue px-4 text-sm text-white shadow-[0_2px_8px_rgba(0,113,227,0.2)] transition hover:opacity-90 active:scale-[0.98]"
@@ -384,29 +482,97 @@ export function CustomersClient() {
                       Tạo đơn
                     </Link>
                     {data.selectedCustomer ? (
-                      <Button variant="danger" onClick={deleteCustomer}>
-                        <Trash2 size={16} />
-                        {isDeleting ? "Đang xóa..." : "Xóa khách"}
-                      </Button>
+                      showEditForm ? (
+                        <>
+                          <Button variant="secondary" onClick={cancelEditingCustomer}>
+                            Hủy sửa
+                          </Button>
+                          <Button onClick={updateCustomer}>
+                            {isSavingEdit ? "Đang lưu..." : "Lưu thay đổi"}
+                          </Button>
+                        </>
+                      ) : (
+                        <>
+                          <Button variant="secondary" onClick={startEditingCustomer}>
+                            <Pencil size={16} />
+                            Sửa khách
+                          </Button>
+                          <Button variant="danger" onClick={deleteCustomer}>
+                            <Trash2 size={16} />
+                            {isDeleting ? "Đang xóa..." : "Xóa khách"}
+                          </Button>
+                        </>
+                      )
                     ) : null}
                   </div>
                 </div>
-                <div className="grid w-full gap-3 sm:grid-cols-2 md:max-w-md">
-                  <Metric
-                    label="Tổng chi tiêu"
-                    value={data.selectedCustomer?.totalSpend ?? "0đ"}
-                  />
-                  <Metric
-                    label="Tổng số đơn"
-                    value={data.selectedCustomer?.orderCount ?? "0 đơn"}
-                  />
+
+                <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_320px]">
+                  <div className="min-w-0">
+                    {showEditForm ? (
+                      <div className="rounded-2xl bg-surface-container-low p-4 md:p-5">
+                        <div className="grid gap-5 md:grid-cols-2">
+                          <CustomerField
+                            label="Họ và tên"
+                            value={editName}
+                            onChange={setEditName}
+                            required
+                            placeholder="Nhập tên khách hàng"
+                          />
+                          <CustomerField
+                            label="Số điện thoại"
+                            value={editPhone}
+                            onChange={(value) => setEditPhone(normalizePhoneInput(value))}
+                            type="tel"
+                            inputMode="numeric"
+                            autoComplete="tel"
+                            placeholder="0901234567"
+                          />
+                          <CustomerField
+                            label="Email"
+                            value={editEmail}
+                            onChange={setEditEmail}
+                            placeholder="mail@domain.com"
+                          />
+                          <CustomerField
+                            label="Địa chỉ"
+                            value={editAddress}
+                            onChange={setEditAddress}
+                            placeholder="Nhập địa chỉ"
+                          />
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-1 text-sm text-secondary-neutral-gray">
+                        <p>{data.selectedCustomer?.phone ?? "Chưa có số điện thoại"}</p>
+                        <p>{data.selectedCustomer?.address ?? "Chưa có địa chỉ"}</p>
+                        {data.selectedCustomer?.email ? <p>{data.selectedCustomer.email}</p> : null}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <Metric
+                      label="Tổng chi tiêu"
+                      value={data.selectedCustomer?.totalSpend ?? "0đ"}
+                    />
+                    <Metric
+                      label="Tổng số đơn"
+                      value={data.selectedCustomer?.orderCount ?? "0 đơn"}
+                    />
+                  </div>
                 </div>
+                {deleteError ? (
+                  <div className="mt-5 rounded-xl bg-red-50 px-4 py-3 text-sm text-error">
+                    {deleteError}
+                  </div>
+                ) : null}
+                {editError ? (
+                  <div className="mt-5 rounded-xl bg-red-50 px-4 py-3 text-sm text-error">
+                    {editError}
+                  </div>
+                ) : null}
               </div>
-              {deleteError ? (
-                <div className="mt-5 rounded-xl bg-red-50 px-4 py-3 text-sm text-error">
-                  {deleteError}
-                </div>
-              ) : null}
             </Card>
 
             <TableCard>
@@ -499,6 +665,15 @@ function Metric({ label, value }: { label: string; value: string }) {
         {label}
       </div>
       <p className="text-xl font-semibold">{value}</p>
+    </div>
+  );
+}
+
+function InfoTile({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl bg-surface-container-low px-5 py-4">
+      <p className="text-sm text-secondary-neutral-gray">{label}</p>
+      <p className="mt-2 text-base font-medium text-near-black-ink">{value}</p>
     </div>
   );
 }
