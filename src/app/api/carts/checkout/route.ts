@@ -20,15 +20,15 @@ export async function POST(request: Request) {
     items?: Array<{ productId: string; quantity: number }>;
   };
 
-  if (!body.customerName?.trim() || !body.phone?.trim() || !body.items?.length) {
+  if (!body.customerName?.trim() || !body.items?.length) {
     return NextResponse.json(
       { error: "Thiếu thông tin khách hàng hoặc sản phẩm" },
       { status: 400 },
     );
   }
 
-  const normalizedPhone = normalizePhone(body.phone);
-  if (!isValidVietnamPhone(normalizedPhone)) {
+  const normalizedPhone = normalizePhone(body.phone ?? "");
+  if (normalizedPhone && !isValidVietnamPhone(normalizedPhone)) {
     return NextResponse.json({ error: "Số điện thoại không hợp lệ" }, { status: 400 });
   }
 
@@ -51,9 +51,9 @@ export async function POST(request: Request) {
   const existingCustomers = await prisma.customer.findMany({
     select: { id: true, phone: true },
   });
-  const existingCustomer = existingCustomers.find(
-    (customer) => normalizePhone(customer.phone) === normalizedPhone,
-  );
+  const existingCustomer = normalizedPhone
+    ? existingCustomers.find((customer) => normalizePhone(customer.phone ?? "") === normalizedPhone)
+    : null;
   const customer = existingCustomer
     ? await prisma.customer.update({
         where: { id: existingCustomer.id },
@@ -62,7 +62,7 @@ export async function POST(request: Request) {
     : await prisma.customer.create({
         data: {
           name: body.customerName.trim(),
-          phone: normalizedPhone,
+          phone: normalizedPhone || null,
         },
       });
 

@@ -146,7 +146,9 @@ export function CreateOrderClient({ initialPhone = "" }: { initialPhone?: string
   const [printableOrder, setPrintableOrder] = useState<OrderDetail | null>(null);
 
   const normalizedPhone = normalizePhoneInput(phone);
-  const phoneIsValid = normalizedPhone.length > 0 && isValidVietnamPhone(normalizedPhone);
+  const phoneIsEmpty = normalizedPhone.length === 0;
+  const phoneIsValid = !phoneIsEmpty && isValidVietnamPhone(normalizedPhone);
+  const phoneCanSubmit = phoneIsEmpty || phoneIsValid;
   const subtotal = draftItems.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
   const totalQuantity = draftItems.reduce((sum, item) => sum + item.quantity, 0);
   const selectedExtraChargeTotal = extraCharges
@@ -162,7 +164,7 @@ export function CreateOrderClient({ initialPhone = "" }: { initialPhone?: string
   useEffect(() => {
     async function loadInitialData() {
       const [productsResponse, settingsResponse] = await Promise.all([
-        fetch("/api/products"),
+        fetch("/api/products?pageSize=all"),
         fetch("/api/settings"),
       ]);
       const productsPayload = (await productsResponse.json()) as { data: ProductOption[] };
@@ -293,11 +295,34 @@ export function CreateOrderClient({ initialPhone = "" }: { initialPhone?: string
     updateDraftItem(product, quantity);
   }
 
+  function updateDraftUnitPrice(productId: string, unitPrice: number) {
+    const safeUnitPrice = Math.max(0, Math.round(unitPrice));
+    setDraftItems((current) =>
+      current.map((item) =>
+        item.productId === productId ? { ...item, unitPrice: safeUnitPrice } : item,
+      ),
+    );
+  }
+
   function resetDraft() {
     setDraftItems([]);
     setProductSearch("");
     setSelectedExtraCharges([]);
     setSubmitError("");
+  }
+
+  function resetCreateOrderState() {
+    resetDraft();
+    setPhone("");
+    setCustomerName("");
+    setCustomerAddress("");
+    setCustomerSearchKeyword("");
+    setCustomerSuggestions([]);
+    setShowCustomerSuggestions(false);
+    setPhoneTouched(false);
+    setTempOrders([]);
+    setSelectedTempOrders([]);
+    resetQuickCreateProduct();
   }
 
   function validateCurrentDraft() {
@@ -306,7 +331,7 @@ export function CreateOrderClient({ initialPhone = "" }: { initialPhone?: string
       return false;
     }
 
-    if (!phoneIsValid) {
+    if (!phoneCanSubmit) {
       setPhoneTouched(true);
       setSubmitError("Số điện thoại phải đúng định dạng di động Việt Nam.");
       return false;
@@ -397,6 +422,7 @@ export function CreateOrderClient({ initialPhone = "" }: { initialPhone?: string
         items: draftItems.map((item) => ({
           productId: item.productId,
           quantity: item.quantity,
+          unitPrice: item.unitPrice,
         })),
       }),
     });
@@ -408,12 +434,7 @@ export function CreateOrderClient({ initialPhone = "" }: { initialPhone?: string
       return;
     }
 
-    resetDraft();
-    const nextTempOrders = await fetchTempOrders(normalizedPhone);
-    setTempOrders(nextTempOrders);
-    setSelectedTempOrders((current) =>
-      current.filter((code) => nextTempOrders.some((order) => order.id === code)),
-    );
+    resetCreateOrderState();
     setIsSaving(false);
   }
 
@@ -434,6 +455,7 @@ export function CreateOrderClient({ initialPhone = "" }: { initialPhone?: string
         items: draftItems.map((item) => ({
           productId: item.productId,
           quantity: item.quantity,
+          unitPrice: item.unitPrice,
         })),
       }),
     });
@@ -524,7 +546,6 @@ export function CreateOrderClient({ initialPhone = "" }: { initialPhone?: string
                     setSelectedTempOrders([]);
                   }
                 }}
-                required
               />
               <Field
                 label="Họ và tên"
@@ -766,9 +787,25 @@ export function CreateOrderClient({ initialPhone = "" }: { initialPhone?: string
                     >
                       <div className="min-w-0">
                         <p className="font-medium">{item.name}</p>
-                        <p className="text-sm text-secondary-neutral-gray">
-                          {formatCurrency(item.unitPrice)}
-                        </p>
+                        {item.note ? (
+                          <p className="mt-1 text-sm text-secondary-neutral-gray">{item.note}</p>
+                        ) : null}
+                        <label className="mt-2 block w-fit text-sm text-secondary-neutral-gray">
+                          <span className="mb-1 block">Đơn giá</span>
+                          <input
+                            className="focus-ring h-9 w-32 rounded-lg border border-soft-border-gray bg-white px-3 text-sm font-semibold text-on-surface"
+                            inputMode="numeric"
+                            value={formatCurrency(item.unitPrice)}
+                            onChange={(event) =>
+                              updateDraftUnitPrice(
+                                item.productId,
+                                parseCurrency(event.target.value),
+                              )
+                            }
+                            onFocus={(event) => event.currentTarget.select()}
+                            aria-label={`Đơn giá ${item.name}`}
+                          />
+                        </label>
                       </div>
                       <div className="inline-flex h-9 w-fit items-center rounded-full bg-surface-container">
                         <button
@@ -945,7 +982,7 @@ export function CreateOrderClient({ initialPhone = "" }: { initialPhone?: string
               <div className="rounded-xl border border-dashed border-soft-border-gray bg-surface-container-low px-4 py-6 text-sm text-secondary-neutral-gray md:px-5 md:py-8">
                 {phoneIsValid
                   ? "Khách này chưa có phiếu tạm nào."
-                  : "Nhập hoặc chọn khách để xem các phiếu tạm đang mở."}
+                  : "Nhập số điện thoại để xem các phiếu tạm đang mở."}
               </div>
             )}
           </Card>

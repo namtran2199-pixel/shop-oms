@@ -97,14 +97,14 @@ export async function POST(request: Request) {
   const email = body.email?.trim() || null;
   const address = body.address?.trim() || null;
 
-  if (!name || !phone) {
+  if (!name) {
     return NextResponse.json(
-      { error: "Tên khách hàng và số điện thoại là bắt buộc." },
+      { error: "Tên khách hàng là bắt buộc." },
       { status: 400 },
     );
   }
 
-  if (!isValidVietnamPhone(phone)) {
+  if (phone && !isValidVietnamPhone(phone)) {
     return NextResponse.json(
       { error: "Số điện thoại phải đúng định dạng di động Việt Nam." },
       { status: 400 },
@@ -115,9 +115,9 @@ export async function POST(request: Request) {
   const existingCustomers = await prisma.customer.findMany({
     select: { id: true, phone: true },
   });
-  const duplicatedCustomer = existingCustomers.find(
-    (customer) => normalizePhone(customer.phone) === phone,
-  );
+  const duplicatedCustomer = phone
+    ? existingCustomers.find((customer) => normalizePhone(customer.phone ?? "") === phone)
+    : null;
 
   if (duplicatedCustomer) {
     return NextResponse.json(
@@ -129,7 +129,7 @@ export async function POST(request: Request) {
   const customer = await prisma.customer.create({
     data: {
       name,
-      phone,
+      phone: phone || null,
       email,
       address,
     },
@@ -140,7 +140,7 @@ export async function POST(request: Request) {
       data: {
         id: customer.id,
         name: customer.name,
-        phone: customer.phone,
+        phone: customer.phone ?? "",
         email: customer.email,
         address: customer.address,
       },

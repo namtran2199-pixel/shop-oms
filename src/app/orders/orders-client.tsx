@@ -254,9 +254,14 @@ export function OrdersClient() {
             <tr>
               <th className="w-16 p-0 font-medium">
                 <button
-                  className="grid min-h-12 w-full place-items-center text-action-blue transition hover:bg-surface-container"
+                  className={`grid min-h-12 w-full place-items-center transition hover:bg-surface-container ${
+                    printableOrderIds.length > 0
+                      ? "text-action-blue"
+                      : "cursor-not-allowed text-secondary-neutral-gray opacity-50"
+                  }`}
                   onClick={toggleSelectAllPrintable}
                   aria-label="Chọn tất cả đơn có thể in trên trang"
+                  disabled={printableOrderIds.length === 0}
                 >
                   <span className="grid h-5 w-5 place-items-center rounded border border-mid-border-gray bg-white">
                     {hasSelectedAllPrintable ? <CheckSquare size={16} /> : null}
@@ -287,17 +292,26 @@ export function OrdersClient() {
               return (
                 <tr key={order.id} className="group bg-white transition hover:bg-surface-container-low">
                   <td className="p-0">
-                    {canPrint ? (
-                      <button
-                        className="grid h-full min-h-[88px] w-full place-items-center text-action-blue transition hover:bg-surface-container"
-                        aria-label={`Chọn đơn ${order.id}`}
-                        onClick={() => toggleSelectedOrder(order.id)}
-                      >
-                        <span className="grid h-5 w-5 place-items-center rounded border border-mid-border-gray bg-white">
-                          {isSelected ? <CheckSquare size={16} /> : null}
-                        </span>
-                      </button>
-                    ) : null}
+                    <button
+                      className={`grid h-full min-h-[88px] w-full place-items-center transition hover:bg-surface-container ${
+                        canPrint
+                          ? "text-action-blue"
+                          : "cursor-not-allowed text-secondary-neutral-gray opacity-50"
+                      }`}
+                      aria-label={
+                        canPrint ? `Chọn đơn ${order.id}` : `Đơn ${order.id} chưa thể in`
+                      }
+                      onClick={() => {
+                        if (!canPrint) return;
+                        toggleSelectedOrder(order.id);
+                      }}
+                      disabled={!canPrint}
+                      title={canPrint ? "Chọn đơn để in" : "Phiếu tạm hoặc đơn đã gộp chưa thể in"}
+                    >
+                      <span className="grid h-5 w-5 place-items-center rounded border border-mid-border-gray bg-white">
+                        {isSelected ? <CheckSquare size={16} /> : null}
+                      </span>
+                    </button>
                   </td>
                   <td
                     className="cursor-pointer px-6 py-5 font-mono text-sm text-near-black-ink"

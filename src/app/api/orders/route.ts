@@ -13,6 +13,12 @@ const statusMap: Record<string, OrderStatus> = {
   "Đã gộp": OrderStatus.MERGED,
 };
 
+type RequestedItem = {
+  productId: string;
+  quantity: number;
+  unitPrice?: number;
+};
+
 function normalizePhone(value: string) {
   const digits = value.replace(/\D/g, "");
   if (digits.startsWith("84")) return "0" + digits.slice(2);
@@ -95,26 +101,33 @@ export async function POST(request: Request) {
     temporary?: boolean;
     shippingAddress?: string;
     extraChargeIds?: string[];
-    items?: Array<{ productId: string; quantity: number }>;
+    items?: Array<{ productId: string; quantity: number; unitPrice?: number }>;
   };
 
-  const requestedItems =
+  const requestedItems: RequestedItem[] =
     body.items && body.items.length > 0
-      ? body.items
+      ? body.items.map((item) => ({
+          productId: item.productId,
+          quantity: Math.max(1, Math.round(item.quantity)),
+          unitPrice:
+            typeof item.unitPrice === "number" && Number.isFinite(item.unitPrice)
+              ? Math.max(0, Math.round(item.unitPrice))
+              : undefined,
+        }))
       : body.productId
-        ? [{ productId: body.productId, quantity: body.quantity ?? 1 }]
+        ? [{ productId: body.productId, quantity: Math.max(1, Math.round(body.quantity ?? 1)) }]
         : [];
 
-  if (!body.customerName?.trim() || !body.phone?.trim() || requestedItems.length === 0) {
+  if (!body.customerName?.trim() || requestedItems.length === 0) {
     return NextResponse.json(
       { error: "Thiếu thông tin khách hàng hoặc sản phẩm" },
       { status: 400 },
     );
   }
 
-  const normalizedPhone = normalizePhone(body.phone);
+  const normalizedPhone = normalizePhone(body.phone ?? "");
   const shippingAddress = body.shippingAddress?.trim() || null;
-  if (!isValidVietnamPhone(normalizedPhone)) {
+  if (normalizedPhone && !isValidVietnamPhone(normalizedPhone)) {
     return NextResponse.json(
       { error: "Số điện thoại không hợp lệ" },
       { status: 400 },
@@ -136,12 +149,12 @@ export async function POST(request: Request) {
   const existingCustomers = await prisma.customer.findMany({
     select: { id: true, phone: true },
   });
-  const existingCustomer = existingCustomers.find(
-    (customer) => normalizePhone(customer.phone) === normalizedPhone,
-  );
+  const existingCustomer = normalizedPhone
+    ? existingCustomers.find((customer) => normalizePhone(customer.phone ?? "") === normalizedPhone)
+    : null;
   const customerData = {
     name: body.customerName.trim(),
-    phone: normalizedPhone,
+    phone: normalizedPhone || null,
     ...(shippingAddress ? { address: shippingAddress } : {}),
   };
   const customer = existingCustomer
@@ -156,11 +169,13 @@ export async function POST(request: Request) {
   const orderItems = requestedItems.map((item) => {
     const product = products.find((row) => row.id === item.productId);
     if (!product) throw new Error("Product not found");
-    const quantity = Math.max(1, Math.round(item.quantity));
+    const quantity = item.quantity;
+    const unitPrice = item.unitPrice ?? product.defaultPrice;
     return {
       product,
       quantity,
-      amount: product.defaultPrice * quantity,
+      unitPrice,
+      amount: unitPrice * quantity,
     };
   });
   const subtotal = orderItems.reduce((sum, item) => sum + item.amount, 0);
@@ -196,13 +211,13 @@ export async function POST(request: Request) {
                   ? "Đã thanh toán"
                   : "Chưa ghi nhận",
             items: {
-              create: orderItems.map(({ product, quantity }) => ({
+              create: orderItems.map(({ product, quantity, unitPrice }) => ({
                 productId: product.id,
                 name: product.name,
                 detail: product.note,
                 sku: product.id.slice(-8).toUpperCase(),
                 quantity,
-                unitPrice: product.defaultPrice,
+                unitPrice,
               })),
             },
             extraCharges: {
