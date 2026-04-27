@@ -311,6 +311,12 @@ export function CreateOrderClient({ initialPhone = "" }: { initialPhone?: string
     );
   }
 
+  function updateDraftNote(productId: string, note: string) {
+    setDraftItems((current) =>
+      current.map((item) => (item.productId === productId ? { ...item, note } : item)),
+    );
+  }
+
   function resetDraft() {
     setDraftItems([]);
     setProductSearch("");
@@ -430,6 +436,7 @@ export function CreateOrderClient({ initialPhone = "" }: { initialPhone?: string
           productId: item.productId,
           quantity: item.quantity,
           unitPrice: item.unitPrice,
+          detail: item.note.trim(),
         })),
       }),
     });
@@ -463,6 +470,7 @@ export function CreateOrderClient({ initialPhone = "" }: { initialPhone?: string
           productId: item.productId,
           quantity: item.quantity,
           unitPrice: item.unitPrice,
+          detail: item.note.trim(),
         })),
       }),
     });
@@ -794,9 +802,15 @@ export function CreateOrderClient({ initialPhone = "" }: { initialPhone?: string
                     >
                       <div className="min-w-0">
                         <p className="font-medium">{item.name}</p>
-                        {item.note ? (
-                          <p className="mt-1 text-sm text-secondary-neutral-gray">{item.note}</p>
-                        ) : null}
+                        <label className="mt-2 block max-w-md text-sm text-secondary-neutral-gray">
+                          <span className="mb-1 block">Ghi chú</span>
+                          <textarea
+                            className="focus-ring min-h-20 w-full rounded-lg border border-soft-border-gray bg-white px-3 py-2 text-sm text-on-surface"
+                            value={item.note}
+                            onChange={(event) => updateDraftNote(item.productId, event.target.value)}
+                            placeholder="Nhập ghi chú cho sản phẩm"
+                          />
+                        </label>
                         {item.unitPrice !== item.originalUnitPrice ? (
                           <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
                             <span className="text-secondary-neutral-gray line-through">
