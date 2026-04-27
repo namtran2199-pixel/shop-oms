@@ -2,6 +2,95 @@ import { NextResponse } from "next/server";
 import { OrderStatus, Prisma } from "@prisma/client";
 import { getPrisma } from "@/lib/prisma";
 import { getNextOrderCode } from "@/lib/order-code";
+import { formatCurrency, formatOrderTime } from "@/lib/format";
+
+function normalizeText(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/Đ/g, "D")
+    .toLowerCase()
+    .trim();
+}
+
+function getInitialSearchText(value: string) {
+  return normalizeText(value)
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((word) => word[0])
+    .join("");
+}
+
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const search = searchParams.get("search")?.trim() ?? "";
+  const normalizedSearch = normalizeText(search);
+  const normalizedPhoneSearch = normalizePhone(search);
+  const prisma = getPrisma();
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+  const rows = await prisma.order.findMany({
+    where: {
+      status: OrderStatus.DRAFT,
+      mergedIntoId: null,
+      createdAt: { gte: sevenDaysAgo },
+    },
+    include: {
+      customer: true,
+      items: true,
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  const groupedCounts = new Map<string, number>();
+  rows.forEach((order) => {
+    const phone = normalizePhone(order.customer.phone ?? "");
+    const groupKey = phone ? `phone:${phone}` : `customer:${order.customerId}`;
+    groupedCounts.set(groupKey, (groupedCounts.get(groupKey) ?? 0) + 1);
+  });
+
+  const candidates = rows
+    .map((order) => {
+      const phone = normalizePhone(order.customer.phone ?? "");
+      const groupKey = phone ? `phone:${phone}` : `customer:${order.customerId}`;
+      return {
+        code: order.code,
+        customer: order.customer.name,
+        phone: order.customer.phone ?? "",
+        total: formatCurrency(order.total),
+        totalValue: order.total,
+        status: "Phiếu tạm",
+        time: formatOrderTime(order.createdAt),
+        itemCount: order.items.length,
+        itemsSummary: order.items.map((item) => item.name).join(", "),
+        groupKey,
+      };
+    })
+    .filter((order) => (groupedCounts.get(order.groupKey) ?? 0) > 1)
+    .filter((order) => {
+      if (!search) return true;
+
+      const normalizedCustomer = normalizeText(order.customer);
+      const normalizedItems = normalizeText(order.itemsSummary);
+      const customerInitials = getInitialSearchText(order.customer);
+      const itemInitials = getInitialSearchText(order.itemsSummary);
+
+      return (
+        order.code.toLowerCase().includes(search.toLowerCase()) ||
+        (normalizedSearch.length > 0 &&
+          (normalizedCustomer.includes(normalizedSearch) ||
+            normalizedItems.includes(normalizedSearch) ||
+            customerInitials.startsWith(normalizedSearch) ||
+            itemInitials.startsWith(normalizedSearch))) ||
+        (normalizedPhoneSearch.length > 0 &&
+          normalizePhone(order.phone).includes(normalizedPhoneSearch))
+      );
+    });
+
+  return NextResponse.json({ data: candidates });
+}
 
 export async function POST(request: Request) {
   const body = (await request.json()) as {

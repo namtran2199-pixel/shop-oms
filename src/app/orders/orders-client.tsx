@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CheckSquare, ChevronDown, LoaderCircle, Printer, Search, Trash2 } from "lucide-react";
+import { CheckSquare, ChevronDown, LoaderCircle, Printer, Search, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { Button, StatusBadge, TableCard } from "@/components/ui";
+import { Button, Card, StatusBadge, TableCard } from "@/components/ui";
 import { PrintableReceipt, type OrderDetail } from "./[id]/order-detail-client";
 
 type OrderRow = {
@@ -27,6 +27,19 @@ type OrdersResponse = {
   };
 };
 
+type MergeCandidate = {
+  code: string;
+  customer: string;
+  phone: string;
+  total: string;
+  totalValue: number;
+  status: string;
+  time: string;
+  itemCount: number;
+  itemsSummary: string;
+  groupKey: string;
+};
+
 export function OrdersClient() {
   const router = useRouter();
   const [orders, setOrders] = useState<OrderRow[]>([]);
@@ -45,6 +58,14 @@ export function OrdersClient() {
   const [printableOrders, setPrintableOrders] = useState<OrderDetail[]>([]);
   const [isPrinting, setIsPrinting] = useState(false);
   const [printError, setPrintError] = useState("");
+  const [showMergeModal, setShowMergeModal] = useState(false);
+  const [mergeSearchInput, setMergeSearchInput] = useState("");
+  const [mergeSearch, setMergeSearch] = useState("");
+  const [mergeCandidates, setMergeCandidates] = useState<MergeCandidate[]>([]);
+  const [selectedMergeCodes, setSelectedMergeCodes] = useState<string[]>([]);
+  const [isLoadingMergeCandidates, setIsLoadingMergeCandidates] = useState(false);
+  const [isMerging, setIsMerging] = useState(false);
+  const [mergeError, setMergeError] = useState("");
 
   const printableOrderIds = orders
     .filter((order) => canPrintOrder(order))
@@ -61,6 +82,14 @@ export function OrdersClient() {
 
     return () => window.clearTimeout(timeout);
   }, [searchInput]);
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      setMergeSearch(mergeSearchInput.trim());
+    }, 250);
+
+    return () => window.clearTimeout(timeout);
+  }, [mergeSearchInput]);
 
   const query = useMemo(() => {
     const params = new URLSearchParams();
@@ -93,6 +122,45 @@ export function OrdersClient() {
       active = false;
     };
   }, [query]);
+
+  useEffect(() => {
+    if (!showMergeModal) return;
+    let active = true;
+
+    async function loadMergeCandidates() {
+      setIsLoadingMergeCandidates(true);
+      setMergeError("");
+      const params = new URLSearchParams();
+      if (mergeSearch) params.set("search", mergeSearch);
+      const response = await fetch(`/api/orders/merge${params.toString() ? `?${params}` : ""}`);
+      const payload = (await response.json()) as { data: MergeCandidate[]; error?: string };
+
+      if (!active) return;
+      if (!response.ok) {
+        setMergeCandidates([]);
+        setMergeError(payload.error ?? "Không thể tải phiếu tạm để gộp.");
+        setIsLoadingMergeCandidates(false);
+        return;
+      }
+
+      setMergeCandidates(payload.data);
+      setSelectedMergeCodes((current) =>
+        current.filter((code) => payload.data.some((item) => item.code === code)),
+      );
+      setIsLoadingMergeCandidates(false);
+    }
+
+    loadMergeCandidates().catch(() => {
+      if (!active) return;
+      setMergeCandidates([]);
+      setMergeError("Không thể tải phiếu tạm để gộp.");
+      setIsLoadingMergeCandidates(false);
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [mergeSearch, showMergeModal]);
 
   async function deleteOrder(code: string) {
     const confirmed = window.confirm(`Xóa đơn hàng ${code}?`);
@@ -156,6 +224,68 @@ export function OrdersClient() {
     });
   }
 
+  function openMergeModal() {
+    setShowMergeModal(true);
+    setMergeSearchInput(searchInput.trim());
+    setMergeSearch(searchInput.trim());
+    setSelectedMergeCodes([]);
+    setMergeError("");
+  }
+
+  function closeMergeModal() {
+    if (isMerging) return;
+    setShowMergeModal(false);
+    setSelectedMergeCodes([]);
+    setMergeError("");
+  }
+
+  function toggleMergeOrder(code: string) {
+    const target = mergeCandidates.find((item) => item.code === code);
+    if (!target) return;
+
+    const selectedGroupKey = selectedMergeCodes[0]
+      ? mergeCandidates.find((item) => item.code === selectedMergeCodes[0])?.groupKey
+      : null;
+
+    if (selectedGroupKey && selectedGroupKey !== target.groupKey && !selectedMergeCodes.includes(code)) {
+      return;
+    }
+
+    setSelectedMergeCodes((current) =>
+      current.includes(code) ? current.filter((item) => item !== code) : [...current, code],
+    );
+  }
+
+  async function mergeSelectedDrafts() {
+    if (selectedMergeCodes.length < 2 || isMerging) return;
+
+    setIsMerging(true);
+    setMergeError("");
+    const response = await fetch("/api/orders/merge", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orderCodes: selectedMergeCodes }),
+    });
+    const payload = (await response.json()) as { data?: { code: string }; error?: string };
+
+    if (!response.ok || !payload.data) {
+      setMergeError(payload.error ?? "Không thể gộp phiếu tạm.");
+      setIsMerging(false);
+      return;
+    }
+
+    setShowMergeModal(false);
+    setIsMerging(false);
+    router.push(`/orders/${payload.data.code}`);
+  }
+
+  const selectedMergeItems = mergeCandidates.filter((item) => selectedMergeCodes.includes(item.code));
+  const selectedMergeTotal = selectedMergeItems.reduce((sum, item) => sum + item.totalValue, 0);
+  const selectedMergeGroupKey = selectedMergeItems[0]?.groupKey ?? null;
+  const visibleMergeCandidates = selectedMergeGroupKey
+    ? mergeCandidates.filter((item) => item.groupKey === selectedMergeGroupKey)
+    : mergeCandidates;
+
   useEffect(() => {
     if (printableOrders.length === 0) return;
 
@@ -204,6 +334,9 @@ export function OrdersClient() {
             >
               {isPrinting ? <LoaderCircle size={17} className="animate-spin" /> : <Printer size={17} />}
               In đã chọn ({selectedPrintableCount})
+            </Button>
+            <Button variant="secondary" onClick={openMergeModal}>
+              Gộp phiếu
             </Button>
             <Link href="/orders/new">
               <Button>Tạo đơn</Button>
@@ -384,10 +517,138 @@ export function OrdersClient() {
         </table>
         </TableCard>
       </div>
+      {showMergeModal ? (
+        <div className="fixed inset-0 z-50 bg-black/35 p-4 backdrop-blur-sm">
+          <div className="mx-auto flex h-full max-w-5xl items-center justify-center">
+            <Card className="max-h-[85vh] w-full overflow-hidden">
+              <div className="flex items-center justify-between border-b border-soft-border-gray px-6 py-5">
+                <div>
+                  <h2 className="text-2xl font-semibold">Gộp phiếu tạm</h2>
+                  <p className="mt-1 text-sm text-secondary-neutral-gray">
+                    Chọn các phiếu tạm cùng khách hoặc cùng số điện thoại trong 7 ngày gần nhất.
+                  </p>
+                </div>
+                <button
+                  className="rounded-full p-2 text-secondary-neutral-gray transition hover:bg-surface-container hover:text-near-black-ink"
+                  onClick={closeMergeModal}
+                  aria-label="Đóng modal gộp phiếu"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+              <div className="border-b border-soft-border-gray px-6 py-4">
+                <div className="relative max-w-md">
+                  <Search
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-secondary-neutral-gray"
+                    size={18}
+                  />
+                  <input
+                    className="focus-ring h-10 w-full rounded-full border border-soft-border-gray bg-surface-container-lowest pl-10 pr-4 text-sm"
+                    placeholder="Tìm theo mã phiếu, tên khách, số điện thoại..."
+                    value={mergeSearchInput}
+                    onChange={(event) => setMergeSearchInput(event.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="max-h-[50vh] overflow-auto">
+                {isLoadingMergeCandidates ? (
+                  <div className="px-6 py-10 text-sm text-secondary-neutral-gray">
+                    Đang tải phiếu tạm đủ điều kiện gộp...
+                  </div>
+                ) : mergeCandidates.length === 0 ? (
+                  <div className="px-6 py-14 text-center">
+                    <p className="font-medium text-on-surface">
+                      Không có phiếu tạm nào khác để gộp.
+                    </p>
+                    <p className="mt-2 text-sm text-secondary-neutral-gray">
+                      Hệ thống chỉ hiển thị các phiếu tạm cùng khách hoặc cùng số điện thoại trong 7 ngày gần nhất.
+                    </p>
+                  </div>
+                ) : (
+                  <table className="w-full min-w-[920px] text-left">
+                    <thead className="bg-surface-container-low text-xs uppercase tracking-wide text-secondary-neutral-gray">
+                      <tr>
+                        <th className="w-16 px-6 py-4 font-medium">Chọn</th>
+                        <th className="px-6 py-4 font-medium">Mã phiếu</th>
+                        <th className="px-6 py-4 font-medium">Thời gian</th>
+                        <th className="px-6 py-4 font-medium">Khách hàng</th>
+                        <th className="px-6 py-4 font-medium">Số điện thoại</th>
+                        <th className="px-6 py-4 font-medium">Sản phẩm</th>
+                        <th className="px-6 py-4 font-medium">Tạm tính</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-soft-border-gray">
+                      {visibleMergeCandidates.map((order) => {
+                        const isSelected = selectedMergeCodes.includes(order.code);
+
+                        return (
+                          <tr key={order.code} className="bg-white">
+                            <td className="px-6 py-4">
+                              <button
+                                className="grid h-5 w-5 place-items-center rounded border border-mid-border-gray bg-white text-action-blue"
+                                onClick={() => toggleMergeOrder(order.code)}
+                                aria-label={`Chọn phiếu ${order.code} để gộp`}
+                              >
+                                {isSelected ? <CheckSquare size={16} /> : null}
+                              </button>
+                            </td>
+                            <td className="px-6 py-4 font-mono text-sm">{order.code}</td>
+                            <td className="px-6 py-4 text-secondary-neutral-gray">{order.time}</td>
+                            <td className="px-6 py-4 font-medium">{order.customer}</td>
+                            <td className="px-6 py-4 text-secondary-neutral-gray">{order.phone}</td>
+                            <td className="px-6 py-4">
+                              <p className="text-sm text-secondary-neutral-gray">{order.itemsSummary}</p>
+                              <p className="mt-1 text-xs text-on-surface-variant">
+                                {order.itemCount} sản phẩm
+                              </p>
+                            </td>
+                            <td className="px-6 py-4 font-semibold">{order.total}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+              <div className="flex flex-col gap-3 border-t border-soft-border-gray px-6 py-5 md:flex-row md:items-center md:justify-between">
+                <div className="text-sm text-secondary-neutral-gray">
+                  {selectedMergeCodes.length > 0 ? (
+                    <span>
+                      Đã chọn {selectedMergeCodes.length} phiếu • Tổng tạm tính {formatCurrency(selectedMergeTotal)}
+                    </span>
+                  ) : (
+                    <span>Chọn ít nhất 2 phiếu cùng khách để gộp.</span>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-3">
+                  <Button variant="secondary" onClick={closeMergeModal}>
+                    Đóng
+                  </Button>
+                  <Button
+                    className={selectedMergeCodes.length < 2 || isMerging ? "opacity-60" : ""}
+                    onClick={mergeSelectedDrafts}
+                  >
+                    {isMerging ? "Đang gộp..." : "Gộp phiếu"}
+                  </Button>
+                </div>
+              </div>
+              {mergeError ? (
+                <div className="border-t border-soft-border-gray bg-red-50 px-6 py-3 text-sm text-error">
+                  {mergeError}
+                </div>
+              ) : null}
+            </Card>
+          </div>
+        </div>
+      ) : null}
     </>
   );
 }
 
 function canPrintOrder(order: OrderRow) {
   return order.status !== "Phiếu tạm" && order.status !== "Đã gộp";
+}
+
+function formatCurrency(value: number) {
+  return new Intl.NumberFormat("vi-VN").format(value) + "đ";
 }
