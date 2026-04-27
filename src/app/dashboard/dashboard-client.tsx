@@ -17,16 +17,28 @@ type StatsData = {
 
 export function DashboardClient() {
   const [data, setData] = useState<StatsData | null>(null);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     async function loadStats() {
+      setError("");
       const response = await fetch("/api/stats");
-      const payload = (await response.json()) as { data: StatsData };
+      const payload = (await response.json()) as { data?: StatsData; error?: string };
+      if (!response.ok || !payload.data) {
+        setError(payload.error ?? "Không thể tải dữ liệu thống kê.");
+        return;
+      }
       setData(payload.data);
     }
 
-    loadStats();
+    loadStats().catch(() => {
+      setError("Không thể tải dữ liệu thống kê.");
+    });
   }, []);
+
+  if (error) {
+    return <div className="text-error">{error}</div>;
+  }
 
   if (!data) {
     return <div className="text-secondary-neutral-gray">Đang tải thống kê...</div>;
