@@ -38,10 +38,10 @@ export async function POST(request: Request) {
     );
   }
 
-  const customerPhone = normalizePhone(tempOrders[0].customer.phone);
-  const hasSameCustomer = tempOrders.every(
-    (order) => normalizePhone(order.customer.phone) === customerPhone,
-  );
+  const customerPhone = normalizePhone(tempOrders[0].customer.phone ?? "");
+  const hasSameCustomer = customerPhone
+    ? tempOrders.every((order) => normalizePhone(order.customer.phone ?? "") === customerPhone)
+    : tempOrders.every((order) => order.customerId === tempOrders[0].customerId);
 
   if (!hasSameCustomer) {
     return NextResponse.json(

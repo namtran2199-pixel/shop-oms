@@ -28,7 +28,7 @@ const statements = [
   `CREATE TABLE "Customer" (
     "id" TEXT PRIMARY KEY NOT NULL,
     "name" TEXT NOT NULL,
-    "phone" TEXT NOT NULL UNIQUE,
+    "phone" TEXT UNIQUE,
     "email" TEXT,
     "address" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,

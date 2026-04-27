@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Search, TrendingUp } from "lucide-react";
+import { Plus, Search, Trash2, TrendingUp } from "lucide-react";
 import { Button, Card, PaginationFooter, StatusBadge, TableCard } from "@/components/ui";
 
 type CustomerListItem = {
@@ -68,6 +68,8 @@ export function CustomersClient() {
   const [customerAddress, setCustomerAddress] = useState("");
   const [createError, setCreateError] = useState("");
   const [isCreating, setIsCreating] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -100,6 +102,7 @@ export function CustomersClient() {
 
       if (active) {
         setData(payload.data);
+        setDeleteError("");
         setIsLoading(false);
       }
     }
@@ -169,6 +172,42 @@ export function CustomersClient() {
     setIsCreating(false);
   }
 
+  async function deleteCustomer(customer = data.selectedCustomer) {
+    if (!customer || isDeleting) return;
+
+    const confirmed = window.confirm(`Xóa khách hàng ${customer.name}?`);
+    if (!confirmed) return;
+
+    setDeleteError("");
+    setIsDeleting(true);
+
+    const response = await fetch(`/api/customers/${customer.id}`, { method: "DELETE" });
+    const payload = (await response.json()) as { data?: { id: string }; error?: string };
+
+    if (!response.ok) {
+      setDeleteError(payload.error ?? "Không thể xóa khách hàng.");
+      setIsDeleting(false);
+      return;
+    }
+
+    setData((current) => {
+      const nextCustomers = current.customers.filter((item) => item.id !== customer.id);
+      const nextSelectedCustomer =
+        current.selectedCustomer?.id === customer.id ? null : current.selectedCustomer;
+
+      return {
+        customers: nextCustomers,
+        selectedCustomer: nextSelectedCustomer,
+        meta: {
+          ...current.meta,
+          total: Math.max(0, current.meta.total - 1),
+        },
+      };
+    });
+    setSelectedId(null);
+    setIsDeleting(false);
+  }
+
   return (
     <div className="grid min-w-0 gap-6 xl:grid-cols-[380px_minmax(0,1fr)] xl:gap-8">
       <Card className="min-w-0 overflow-hidden">
@@ -212,31 +251,38 @@ export function CustomersClient() {
             </div>
           ) : null}
           {data.customers.map((customer, index) => (
-            <button
-              key={customer.phone}
-              className={`block w-full px-5 py-4 text-left transition hover:bg-surface-container-low ${
+            <div
+              key={customer.id}
+              className={`px-5 py-4 transition hover:bg-surface-container-low ${
                 data.selectedCustomer?.id === customer.id || (!data.selectedCustomer && index === 0)
                   ? "bg-surface-container-low"
                   : "bg-white"
               }`}
-              onClick={() => setSelectedId(customer.id)}
             >
               <div className="flex items-start justify-between gap-3">
-                <p className="min-w-0 font-semibold">{customer.name}</p>
-                <span className="shrink-0 text-xs text-secondary-neutral-gray">
-                  {customer.recent}
-                </span>
+                <button className="min-w-0 flex-1 text-left" onClick={() => setSelectedId(customer.id)}>
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="min-w-0 font-semibold">{customer.name}</p>
+                    <span className="shrink-0 text-xs text-secondary-neutral-gray">
+                      {customer.recent}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-sm text-secondary-neutral-gray">{customer.phone}</p>
+                  <p className="mt-1 text-sm text-secondary-neutral-gray">
+                    {customer.address ?? "Chưa có địa chỉ"}
+                  </p>
+                  <p className="mt-2 text-xs text-on-surface-variant">{customer.summary}</p>
+                </button>
+                <button
+                  className="shrink-0 rounded-full p-2 text-secondary-neutral-gray transition hover:bg-white hover:text-error"
+                  aria-label={`Xóa khách ${customer.name}`}
+                  title="Xóa khách"
+                  onClick={() => void deleteCustomer(customer)}
+                >
+                  <Trash2 size={16} />
+                </button>
               </div>
-              <p className="mt-1 text-sm text-secondary-neutral-gray">
-                {customer.phone}
-              </p>
-              <p className="mt-1 text-sm text-secondary-neutral-gray">
-                {customer.address ?? "Chưa có địa chỉ"}
-              </p>
-              <p className="mt-2 text-xs text-on-surface-variant">
-                {customer.summary}
-              </p>
-            </button>
+            </div>
           ))}
         </div>
         <PaginationFooter
@@ -337,6 +383,12 @@ export function CustomersClient() {
                       <Plus size={16} />
                       Tạo đơn
                     </Link>
+                    {data.selectedCustomer ? (
+                      <Button variant="danger" onClick={deleteCustomer}>
+                        <Trash2 size={16} />
+                        {isDeleting ? "Đang xóa..." : "Xóa khách"}
+                      </Button>
+                    ) : null}
                   </div>
                 </div>
                 <div className="grid w-full gap-3 sm:grid-cols-2 md:max-w-md">
@@ -350,6 +402,11 @@ export function CustomersClient() {
                   />
                 </div>
               </div>
+              {deleteError ? (
+                <div className="mt-5 rounded-xl bg-red-50 px-4 py-3 text-sm text-error">
+                  {deleteError}
+                </div>
+              ) : null}
             </Card>
 
             <TableCard>

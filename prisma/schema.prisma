@@ -36,7 +36,7 @@ model User {
 model Customer {
   id        String   @id @default(cuid())
   name      String
-  phone     String   @unique
+  phone     String?  @unique
   email     String?
   address   String?
   createdAt DateTime @default(now())

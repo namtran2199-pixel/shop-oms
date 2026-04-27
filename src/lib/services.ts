@@ -39,7 +39,7 @@ export async function getOrders() {
   return rows.map((order) => ({
     id: order.code,
     customer: order.customer.name,
-    phone: order.customer.phone,
+    phone: order.customer.phone ?? "",
     total: formatCurrency(order.total),
     status: formatOrderStatus(order.status),
     statusCode: order.status,
@@ -91,7 +91,10 @@ export async function getOrderDetail(code: string) {
       phone: storeSettings?.phone ?? "",
       qrCodeImageUrl: storeSettings?.qrCodeImageUrl ?? null,
     },
-    customer: order.customer,
+    customer: {
+      ...order.customer,
+      phone: order.customer.phone ?? "",
+    },
     status: formatOrderStatus(order.status),
     statusCode: order.status,
     sourceCodes: order.mergedOrders.map((mergedOrder) => mergedOrder.code),
@@ -114,6 +117,7 @@ export async function getOrderDetail(code: string) {
     shippingMethod: order.shippingMethod ?? "Chưa chọn",
     shippingAddress: order.shippingAddress ?? order.customer.address ?? "Chưa có địa chỉ",
     items: order.items.map((item) => ({
+      productId: item.productId,
       name: item.name,
       detail: item.detail ?? "",
       sku: item.sku ?? "",
@@ -157,7 +161,7 @@ export async function getCustomers() {
     return {
       id: customer.id,
       name: customer.name,
-      phone: customer.phone,
+      phone: customer.phone ?? "",
       email: customer.email,
       address: customer.address,
       recent: customer.orders.length ? "Có đơn hàng" : "Chưa có đơn",
@@ -187,7 +191,7 @@ export async function getCustomerDetail(customerId?: string) {
   return {
     id: customer.id,
     name: customer.name,
-    phone: customer.phone,
+    phone: customer.phone ?? "",
     email: customer.email,
     address: customer.address,
     totalSpend: formatCurrency(total),
