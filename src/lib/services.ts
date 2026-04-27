@@ -7,7 +7,13 @@ import {
   Watch,
 } from "lucide-react";
 import { getPrisma } from "@/lib/prisma";
-import { formatCurrency, formatOrderStatus, formatOrderTime } from "@/lib/format";
+import {
+  formatCurrency,
+  formatOrderDate,
+  formatOrderLongDate,
+  formatOrderStatus,
+  formatOrderTime,
+} from "@/lib/format";
 
 const iconMap = {
   Headphones,
@@ -78,14 +84,8 @@ export async function getOrderDetail(code: string) {
     code: order.code,
     createdAtIso: order.createdAt.toISOString(),
     createdAtLabel: formatOrderTime(order.createdAt),
-    receiptDateLabel: new Intl.DateTimeFormat("vi-VN", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    }).format(order.createdAt),
-    receiptLongDateLabel: `Ngày ${String(order.createdAt.getDate()).padStart(2, "0")} tháng ${String(
-      order.createdAt.getMonth() + 1,
-    ).padStart(2, "0")} năm ${order.createdAt.getFullYear()}`,
+    receiptDateLabel: formatOrderDate(order.createdAt),
+    receiptLongDateLabel: formatOrderLongDate(order.createdAt),
     store: {
       name: storeSettings?.shopName ?? "Shop Retail",
       phone: storeSettings?.phone ?? "",
@@ -122,6 +122,7 @@ export async function getOrderDetail(code: string) {
       detail: item.detail ?? "",
       sku: item.sku ?? "",
       qty: item.quantity,
+      originalUnitPrice: item.product.defaultPrice,
       unitPrice: item.unitPrice,
       lineTotal: item.unitPrice * item.quantity,
       price: formatCurrency(item.unitPrice * item.quantity),
