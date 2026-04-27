@@ -557,6 +557,7 @@ export function PrintableReceipt({ order }: { order: OrderDetail }) {
         {order.items.map((item) => (
           <div className="receipt-item" key={item.sku || item.name}>
             <p className="receipt-item-name">{item.name}</p>
+            {item.detail ? <p>{item.detail}</p> : null}
             <div className="receipt-row">
               <span className="inline-flex items-center gap-2">
                 {item.unitPrice !== item.originalUnitPrice ? (

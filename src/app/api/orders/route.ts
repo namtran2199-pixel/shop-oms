@@ -17,6 +17,7 @@ type RequestedItem = {
   productId: string;
   quantity: number;
   unitPrice?: number;
+  detail?: string;
 };
 
 function normalizePhone(value: string) {
@@ -101,18 +102,19 @@ export async function POST(request: Request) {
     temporary?: boolean;
     shippingAddress?: string;
     extraChargeIds?: string[];
-    items?: Array<{ productId: string; quantity: number; unitPrice?: number }>;
+    items?: Array<{ productId: string; quantity: number; unitPrice?: number; detail?: string }>;
   };
 
   const requestedItems: RequestedItem[] =
     body.items && body.items.length > 0
-      ? body.items.map((item) => ({
+        ? body.items.map((item) => ({
           productId: item.productId,
           quantity: Math.max(1, Math.round(item.quantity)),
           unitPrice:
             typeof item.unitPrice === "number" && Number.isFinite(item.unitPrice)
               ? Math.max(0, Math.round(item.unitPrice))
               : undefined,
+          detail: item.detail?.trim() || undefined,
         }))
       : body.productId
         ? [{ productId: body.productId, quantity: Math.max(1, Math.round(body.quantity ?? 1)) }]
@@ -175,6 +177,7 @@ export async function POST(request: Request) {
       product,
       quantity,
       unitPrice,
+      detail: item.detail?.trim() || product.note || null,
       amount: unitPrice * quantity,
     };
   });
@@ -211,10 +214,10 @@ export async function POST(request: Request) {
                   ? "Đã thanh toán"
                   : "Chưa ghi nhận",
             items: {
-              create: orderItems.map(({ product, quantity, unitPrice }) => ({
+              create: orderItems.map(({ product, quantity, unitPrice, detail }) => ({
                 productId: product.id,
                 name: product.name,
-                detail: product.note,
+                detail,
                 sku: product.id.slice(-8).toUpperCase(),
                 quantity,
                 unitPrice,
