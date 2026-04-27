@@ -172,7 +172,7 @@ export function CustomersClient() {
     setIsCreating(false);
   }
 
-  async function deleteCustomer(customer = data.selectedCustomer) {
+  async function deleteCustomer(customer: Pick<CustomerListItem, "id" | "name"> | null = data.selectedCustomer) {
     if (!customer || isDeleting) return;
 
     const confirmed = window.confirm(`Xóa khách hàng ${customer.name}?`);
