@@ -29,6 +29,7 @@ type DraftLine = {
   name: string;
   note: string;
   quantity: number;
+  originalUnitPrice: number;
   unitPrice: number;
 };
 
@@ -194,13 +195,18 @@ export function CreateOrderClient({ initialPhone = "" }: { initialPhone?: string
 
       try {
         setIsSearchingCustomers(true);
-        const response = await fetch(`/api/customers?search=${encodeURIComponent(keywordValue)}`, {
+        const params = new URLSearchParams({
+          search: keywordValue,
+          page: "1",
+          pageSize: "8",
+        });
+        const response = await fetch(`/api/customers?${params.toString()}`, {
           signal: controller.signal,
         });
         const payload = (await response.json()) as {
           data: { customers: CustomerSuggestion[] };
         };
-        setCustomerSuggestions(payload.data.customers.slice(0, 4));
+        setCustomerSuggestions(payload.data.customers.slice(0, 8));
         setIsSearchingCustomers(false);
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") return;
@@ -283,6 +289,7 @@ export function CreateOrderClient({ initialPhone = "" }: { initialPhone?: string
           name: product.name,
           note: product.note,
           quantity: safeQuantity,
+          originalUnitPrice: parseCurrency(product.price),
           unitPrice: parseCurrency(product.price),
         },
       ];
@@ -584,14 +591,14 @@ export function CreateOrderClient({ initialPhone = "" }: { initialPhone?: string
                   {customerSuggestions.map((customer) => (
                     <button
                       key={customer.id}
-                      className="rounded-xl bg-surface-container-low px-4 py-3 text-left transition hover:bg-surface-container"
+                      className="rounded-lg bg-surface-container-low px-3 py-2.5 text-left transition hover:bg-surface-container"
                       onClick={() => selectCustomer(customer)}
                     >
-                      <span className="block font-medium">{customer.name}</span>
-                      <span className="text-sm text-secondary-neutral-gray">
+                      <span className="block text-[15px] font-medium leading-5">{customer.name}</span>
+                      <span className="text-[13px] leading-5 text-secondary-neutral-gray">
                         {customer.phone} • {customer.summary}
                       </span>
-                      <span className="mt-1 block text-sm text-secondary-neutral-gray">
+                      <span className="mt-0.5 block text-[13px] leading-5 text-secondary-neutral-gray">
                         {customer.address ?? "Chưa có địa chỉ"}
                       </span>
                     </button>
@@ -789,6 +796,16 @@ export function CreateOrderClient({ initialPhone = "" }: { initialPhone?: string
                         <p className="font-medium">{item.name}</p>
                         {item.note ? (
                           <p className="mt-1 text-sm text-secondary-neutral-gray">{item.note}</p>
+                        ) : null}
+                        {item.unitPrice !== item.originalUnitPrice ? (
+                          <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
+                            <span className="text-secondary-neutral-gray line-through">
+                              {formatCurrency(item.originalUnitPrice)}
+                            </span>
+                            <span className="font-semibold text-action-blue">
+                              {formatCurrency(item.unitPrice)}
+                            </span>
+                          </div>
                         ) : null}
                         <label className="mt-2 block w-fit text-sm text-secondary-neutral-gray">
                           <span className="mb-1 block">Đơn giá</span>

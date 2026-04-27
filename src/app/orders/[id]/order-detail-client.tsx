@@ -34,6 +34,7 @@ export type OrderDetail = {
     detail: string;
     sku: string;
     qty: number;
+    originalUnitPrice: number;
     unitPrice: number;
     lineTotal: number;
     price: string;
@@ -476,6 +477,11 @@ export function OrderDetailClient({ code }: { code: string }) {
                     </div>
                     <div className="text-right">
                       <p className="text-sm text-secondary-neutral-gray">SL: {item.qty}</p>
+                      {item.unitPrice !== item.originalUnitPrice ? (
+                        <p className="mt-2 text-sm text-secondary-neutral-gray line-through">
+                          {formatDisplayCurrency(item.originalUnitPrice)}
+                        </p>
+                      ) : null}
                       <p className="mt-2 font-semibold">{item.price}</p>
                     </div>
                   </div>
@@ -552,7 +558,14 @@ export function PrintableReceipt({ order }: { order: OrderDetail }) {
           <div className="receipt-item" key={item.sku || item.name}>
             <p className="receipt-item-name">{item.name}</p>
             <div className="receipt-row">
-              <span>{formatReceiptMoney(item.unitPrice)}</span>
+              <span className="inline-flex items-center gap-2">
+                {item.unitPrice !== item.originalUnitPrice ? (
+                  <span className="line-through opacity-60">
+                    {formatReceiptMoney(item.originalUnitPrice)}
+                  </span>
+                ) : null}
+                <span>{formatReceiptMoney(item.unitPrice)}</span>
+              </span>
               <span>{item.qty}</span>
               <span>{formatReceiptMoney(item.lineTotal)}</span>
             </div>
@@ -580,18 +593,6 @@ export function PrintableReceipt({ order }: { order: OrderDetail }) {
         <span>TỔNG:</span>
         <span>{formatReceiptMoney(order.totalValue)}</span>
       </p>
-      <p className="receipt-qr-label">Quét mã chuyển khoản:</p>
-      {order.store.qrCodeImageUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          className="receipt-qr-image"
-          src={order.store.qrCodeImageUrl}
-          alt="QR chuyển khoản"
-          loading="eager"
-        />
-      ) : (
-        <div className="receipt-qr-placeholder">{order.code}</div>
-      )}
     </section>
   );
 }
@@ -600,12 +601,12 @@ function formatReceiptMoney(value: number) {
   return new Intl.NumberFormat("vi-VN").format(value);
 }
 
-function formatCurrencyInput(value: number) {
-  if (!value) return "";
+function formatDisplayCurrency(value: number) {
   return new Intl.NumberFormat("vi-VN").format(value) + "đ";
 }
 
-function formatDisplayCurrency(value: number) {
+function formatCurrencyInput(value: number) {
+  if (!value) return "";
   return new Intl.NumberFormat("vi-VN").format(value) + "đ";
 }
 

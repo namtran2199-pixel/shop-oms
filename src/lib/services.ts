@@ -122,6 +122,7 @@ export async function getOrderDetail(code: string) {
       detail: item.detail ?? "",
       sku: item.sku ?? "",
       qty: item.quantity,
+      originalUnitPrice: item.product.defaultPrice,
       unitPrice: item.unitPrice,
       lineTotal: item.unitPrice * item.quantity,
       price: formatCurrency(item.unitPrice * item.quantity),
