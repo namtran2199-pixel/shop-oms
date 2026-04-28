@@ -55,6 +55,7 @@ export function OrdersClient() {
   });
   const [isLoading, setIsLoading] = useState(true);
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
+  const [selectedPrintableOrderIds, setSelectedPrintableOrderIds] = useState<string[]>([]);
   const [printableOrders, setPrintableOrders] = useState<OrderDetail[]>([]);
   const [isPrinting, setIsPrinting] = useState(false);
   const [printError, setPrintError] = useState("");
@@ -67,12 +68,13 @@ export function OrdersClient() {
   const [isMerging, setIsMerging] = useState(false);
   const [mergeError, setMergeError] = useState("");
 
+  const visibleOrderIds = orders.map((order) => order.id);
   const printableOrderIds = orders
     .filter((order) => canPrintOrder(order))
     .map((order) => order.id);
-  const selectedPrintableCount = selectedOrderIds.length;
-  const hasSelectedAllPrintable =
-    printableOrderIds.length > 0 && printableOrderIds.every((id) => selectedOrderIds.includes(id));
+  const selectedPrintableCount = selectedPrintableOrderIds.length;
+  const hasSelectedAllVisible =
+    visibleOrderIds.length > 0 && visibleOrderIds.every((id) => selectedOrderIds.includes(id));
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -171,6 +173,7 @@ export function OrdersClient() {
 
     setOrders((current) => current.filter((order) => order.id !== code));
     setSelectedOrderIds((current) => current.filter((id) => id !== code));
+    setSelectedPrintableOrderIds((current) => current.filter((id) => id !== code));
     setMeta((current) => ({
       ...current,
       total: Math.max(0, current.total - 1),
@@ -199,8 +202,8 @@ export function OrdersClient() {
   }
 
   function printSelectedOrders() {
-    if (selectedOrderIds.length === 0 || isPrinting) return;
-    void loadPrintableOrders(selectedOrderIds);
+    if (selectedPrintableOrderIds.length === 0 || isPrinting) return;
+    void loadPrintableOrders(selectedPrintableOrderIds);
   }
 
   function printSingleOrder(code: string) {
@@ -209,19 +212,49 @@ export function OrdersClient() {
   }
 
   function toggleSelectedOrder(code: string) {
+    const targetOrder = orders.find((order) => order.id === code);
+    const isPrintable = targetOrder ? canPrintOrder(targetOrder) : false;
+
     setSelectedOrderIds((current) =>
       current.includes(code) ? current.filter((id) => id !== code) : [...current, code],
     );
+    setSelectedPrintableOrderIds((current) => {
+      if (current.includes(code)) {
+        return current.filter((id) => id !== code);
+      }
+
+      if (!isPrintable) {
+        return current;
+      }
+
+      return [...current, code];
+    });
   }
 
   function toggleSelectAllPrintable() {
     setSelectedOrderIds((current) => {
-      if (hasSelectedAllPrintable) {
+      if (hasSelectedAllVisible) {
+        return current.filter((id) => !visibleOrderIds.includes(id));
+      }
+
+      return Array.from(new Set([...current, ...visibleOrderIds]));
+    });
+    setSelectedPrintableOrderIds((current) => {
+      if (hasSelectedAllVisible) {
         return current.filter((id) => !printableOrderIds.includes(id));
       }
 
       return Array.from(new Set([...current, ...printableOrderIds]));
     });
+  }
+
+  function processSelectedOrders() {
+    if (selectedOrderIds.length === 0) return;
+
+    const params = new URLSearchParams({
+      batch: selectedOrderIds.join(","),
+    });
+    router.push(`/orders/${selectedOrderIds[0]}?${params.toString()}`);
   }
 
   function openMergeModal() {
@@ -313,20 +346,8 @@ export function OrdersClient() {
         </div>
       ) : null}
       <div className="screen-only">
-        <div className="mb-8 flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
-          <div className="relative w-full md:w-96">
-            <Search
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-secondary-neutral-gray"
-              size={20}
-            />
-            <input
-              className="focus-ring h-10 w-full rounded-full border border-soft-border-gray bg-surface-container-lowest pl-10 pr-4 text-[15px]"
-              placeholder="Tìm số điện thoại, tên khách, mã đơn..."
-              value={searchInput}
-              onChange={(event) => setSearchInput(event.target.value)}
-            />
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
+        <div className="mb-8 space-y-5">
+          <div className="flex flex-wrap items-center justify-end gap-3">
             <Button
               variant="secondary"
               className={selectedPrintableCount === 0 || isPrinting ? "opacity-60" : ""}
@@ -335,12 +356,33 @@ export function OrdersClient() {
               {isPrinting ? <LoaderCircle size={17} className="animate-spin" /> : <Printer size={17} />}
               In đã chọn ({selectedPrintableCount})
             </Button>
+            <Button
+              variant="secondary"
+              className={selectedOrderIds.length === 0 ? "opacity-60" : ""}
+              onClick={processSelectedOrders}
+            >
+              Xử lý đặt hàng ({selectedOrderIds.length})
+            </Button>
             <Button variant="secondary" onClick={openMergeModal}>
               Gộp phiếu
             </Button>
             <Link href="/orders/new">
               <Button>Tạo đơn</Button>
             </Link>
+          </div>
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div className="relative w-full md:max-w-md">
+              <Search
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-secondary-neutral-gray"
+                size={20}
+              />
+              <input
+                className="focus-ring h-10 w-full rounded-full border border-soft-border-gray bg-surface-container-lowest pl-10 pr-4 text-[15px]"
+                placeholder="Tìm số điện thoại, tên khách, mã đơn..."
+                value={searchInput}
+                onChange={(event) => setSearchInput(event.target.value)}
+              />
+            </div>
             <label className="flex items-center gap-3 text-sm text-on-surface-variant">
               Trạng thái:
               <span className="relative inline-flex">
@@ -387,16 +429,16 @@ export function OrdersClient() {
               <tr>
                 <th className="w-16 p-0 font-medium">
                   <button
-                    className={`grid min-h-12 w-full place-items-center transition hover:bg-surface-container ${printableOrderIds.length > 0
+                    className={`grid min-h-12 w-full place-items-center transition hover:bg-surface-container ${visibleOrderIds.length > 0
                       ? "text-action-blue"
                       : "cursor-not-allowed text-secondary-neutral-gray opacity-50"
                       }`}
                     onClick={toggleSelectAllPrintable}
-                    aria-label="Chọn tất cả đơn có thể in trên trang"
-                    disabled={printableOrderIds.length === 0}
+                    aria-label="Chọn tất cả đơn trên trang"
+                    disabled={visibleOrderIds.length === 0}
                   >
                     <span className="grid h-5 w-5 place-items-center rounded border border-mid-border-gray bg-white">
-                      {hasSelectedAllPrintable ? <CheckSquare size={16} /> : null}
+                      {hasSelectedAllVisible ? <CheckSquare size={16} /> : null}
                     </span>
                   </button>
                 </th>
@@ -425,19 +467,10 @@ export function OrdersClient() {
                   <tr key={order.id} className="group bg-white transition hover:bg-surface-container-low">
                     <td className="p-0">
                       <button
-                        className={`grid h-full min-h-[88px] w-full place-items-center transition hover:bg-surface-container ${canPrint
-                          ? "text-action-blue"
-                          : "cursor-not-allowed text-secondary-neutral-gray opacity-50"
-                          }`}
-                        aria-label={
-                          canPrint ? `Chọn đơn ${order.id}` : `Đơn ${order.id} chưa thể in`
-                        }
-                        onClick={() => {
-                          if (!canPrint) return;
-                          toggleSelectedOrder(order.id);
-                        }}
-                        disabled={!canPrint}
-                        title={canPrint ? "Chọn đơn để in" : "Phiếu tạm hoặc đơn đã gộp chưa thể in"}
+                        className="grid h-full min-h-[88px] w-full place-items-center text-action-blue transition hover:bg-surface-container"
+                        aria-label={`Chọn đơn ${order.id}`}
+                        onClick={() => toggleSelectedOrder(order.id)}
+                        title="Chọn đơn để xử lý hàng loạt"
                       >
                         <span className="grid h-5 w-5 place-items-center rounded border border-mid-border-gray bg-white">
                           {isSelected ? <CheckSquare size={16} /> : null}

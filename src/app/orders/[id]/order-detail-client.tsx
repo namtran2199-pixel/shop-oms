@@ -66,7 +66,14 @@ declare global {
   }
 }
 
-export function OrderDetailClient({ code }: { code: string }) {
+export function OrderDetailClient({
+  code,
+  batchCodes,
+}: {
+  code: string;
+  batchCodes: string[];
+}) {
+  const [activeCode, setActiveCode] = useState(code);
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [products, setProducts] = useState<ProductOption[]>([]);
   const [draftItems, setDraftItems] = useState<EditableOrderItem[]>([]);
@@ -74,17 +81,44 @@ export function OrderDetailClient({ code }: { code: string }) {
   const [isEditingDraft, setIsEditingDraft] = useState(false);
   const [isSavingDraft, setIsSavingDraft] = useState(false);
   const [isLoadingProducts, setIsLoadingProducts] = useState(false);
+  const [isLoadingOrder, setIsLoadingOrder] = useState(true);
   const [editError, setEditError] = useState("");
+  const hasBatchTabs = batchCodes.length > 1;
+
+  const batchQueryString = useMemo(() => {
+    if (batchCodes.length <= 1) return "";
+    return new URLSearchParams({ batch: batchCodes.join(",") }).toString();
+  }, [batchCodes]);
 
   useEffect(() => {
+    let active = true;
+
     async function loadOrder() {
-      const response = await fetch(`/api/orders/${code}`);
+      setIsLoadingOrder(true);
+      const response = await fetch(`/api/orders/${activeCode}`);
       const payload = (await response.json()) as { data: OrderDetail };
+      if (!active) return;
       setOrder(payload.data);
+      setIsLoadingOrder(false);
     }
 
-    loadOrder();
-  }, [code]);
+    loadOrder().catch(() => {
+      if (!active) return;
+      setOrder(null);
+      setIsLoadingOrder(false);
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [activeCode]);
+
+  function resetDraftEditor() {
+    setIsEditingDraft(false);
+    setDraftItems([]);
+    setEditError("");
+    setProductSearch("");
+  }
 
   const productKeyword = normalizeSearchText(productSearch);
   const filteredProducts = useMemo(() => {
@@ -260,89 +294,134 @@ export function OrderDetailClient({ code }: { code: string }) {
     window.print();
   }
 
+  function goToBatchOrder(nextCode: string) {
+    if (nextCode === activeCode) return;
+    const nextHref = batchQueryString
+      ? `/orders/${nextCode}?${batchQueryString}`
+      : `/orders/${nextCode}`;
+    resetDraftEditor();
+    window.history.replaceState(window.history.state, "", nextHref);
+    setActiveCode(nextCode);
+  }
+
   if (!order) {
     return <div className="text-secondary-neutral-gray">Đang tải đơn hàng...</div>;
   }
 
-  const canPrint = order.status !== "Phiếu tạm" && order.status !== "Đã gộp";
+  const activeOrder = order.code === activeCode ? order : null;
+  const canPrint = activeOrder ? activeOrder.status !== "Phiếu tạm" && activeOrder.status !== "Đã gộp" : false;
   const editingSubtotal = draftItems.reduce((sum, item) => sum + item.unitPrice * item.qty, 0);
 
   return (
     <>
-      <PrintableReceipt order={order} />
+      {activeOrder ? <PrintableReceipt order={activeOrder} /> : null}
       <div className="screen-only">
-        <PageHeader
-          title={`Đơn hàng #${order.code}`}
-          description={`Được tạo lúc ${order.createdAtLabel}`}
-          actions={
-            <>
-              {order.status === "Phiếu tạm" ? (
-                isEditingDraft ? (
-                  <>
-                    <Button variant="secondary" onClick={cancelEditingDraft}>
-                      Hủy sửa
-                    </Button>
-                    <Button onClick={saveDraftChanges}>
-                      {isSavingDraft ? "Đang lưu..." : "Lưu phiếu"}
-                    </Button>
-                  </>
-                ) : (
-                  <Button variant="secondary" onClick={() => void startEditingDraft()}>
-                    Sửa phiếu
-                  </Button>
-                )
-              ) : null}
-              {canPrint ? (
-                <Button variant="secondary" onClick={printOrder}>
-                  <Printer size={17} />
-                  In đơn
-                </Button>
-              ) : null}
-            </>
-          }
-        />
-        <Card className="mb-6 p-5">
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div>
-              <div className="mb-2">
-                <StatusBadge status={order.status} />
-              </div>
-              {order.status === "Phiếu tạm" ? (
-                <p className="text-sm text-secondary-neutral-gray">
-                  Phiếu này chưa phải bill cuối. Khi chuẩn bị ship, hãy chốt phiếu này hoặc gộp
-                  cùng các phiếu tạm khác của khách rồi mới in bill.
-                </p>
-              ) : null}
-              {order.mergedIntoCode ? (
-                <p className="text-sm text-secondary-neutral-gray">
-                  Phiếu này đã được gộp vào{" "}
-                  <Link className="font-medium text-action-blue" href={`/orders/${order.mergedIntoCode}`}>
-                    {order.mergedIntoCode}
-                  </Link>
-                  .
-                </p>
-              ) : null}
-              {order.sourceCodes.length > 0 ? (
-                <p className="text-sm text-secondary-neutral-gray">
-                  Đơn này được tạo do gộp các phiếu: {order.sourceCodes.join(", ")}.
-                </p>
-              ) : null}
+        {hasBatchTabs ? (
+          <Card className="mb-6 overflow-hidden p-0">
+            <div className="border-b border-soft-border-gray px-5 py-3">
+              <p className="text-sm font-medium text-on-surface">Đang xử lý {batchCodes.length} đơn hàng</p>
+              <p className="mt-1 text-xs text-secondary-neutral-gray">
+                Chọn từng tab để mở nhanh chi tiết của các đơn đã chọn từ danh sách.
+              </p>
             </div>
-            {order.status === "Phiếu tạm" ? (
-              <Link href={`/orders/new?phone=${encodeURIComponent(order.customer.phone)}`}>
-                <Button variant="secondary">Chốt / gộp phiếu</Button>
-              </Link>
-            ) : null}
-          </div>
-        </Card>
-        <div className="grid gap-8 xl:grid-cols-[1fr_380px]">
+            <div className="overflow-x-auto px-3 py-3">
+              <div className="flex min-w-max items-center gap-2">
+                {batchCodes.map((batchCode) => {
+                  const isActive = batchCode === activeCode;
+
+                  return (
+                    <button
+                      key={batchCode}
+                      type="button"
+                      onClick={() => goToBatchOrder(batchCode)}
+                      className={`focus-ring inline-flex h-11 items-center rounded-full border px-4 text-sm font-semibold transition ${
+                        isActive
+                          ? "border-action-blue bg-action-blue text-pure-white shadow-[0_2px_8px_rgba(0,113,227,0.2)]"
+                          : "border-soft-border-gray bg-surface-container-lowest text-near-black-ink hover:border-mid-border-gray hover:bg-surface-container-low"
+                      }`}
+                    >
+                      {batchCode}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </Card>
+        ) : null}
+        {activeOrder && !isLoadingOrder ? (
+          <>
+            <PageHeader
+              title={`Đơn hàng #${activeOrder.code}`}
+              description={`Được tạo lúc ${activeOrder.createdAtLabel}`}
+              actions={
+                <>
+                  {activeOrder.status === "Phiếu tạm" ? (
+                    isEditingDraft ? (
+                      <>
+                        <Button variant="secondary" onClick={cancelEditingDraft}>
+                          Hủy sửa
+                        </Button>
+                        <Button onClick={saveDraftChanges}>
+                          {isSavingDraft ? "Đang lưu..." : "Lưu phiếu"}
+                        </Button>
+                      </>
+                    ) : (
+                      <Button variant="secondary" onClick={() => void startEditingDraft()}>
+                        Sửa phiếu
+                      </Button>
+                    )
+                  ) : null}
+                  {canPrint ? (
+                    <Button variant="secondary" onClick={printOrder}>
+                      <Printer size={17} />
+                      In đơn
+                    </Button>
+                  ) : null}
+                </>
+              }
+            />
+            <Card className="mb-6 p-5">
+              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <div className="mb-2">
+                    <StatusBadge status={activeOrder.status} />
+                  </div>
+                  {activeOrder.status === "Phiếu tạm" ? (
+                    <p className="text-sm text-secondary-neutral-gray">
+                      Phiếu này chưa phải bill cuối. Khi chuẩn bị ship, hãy chốt phiếu này hoặc gộp
+                      cùng các phiếu tạm khác của khách rồi mới in bill.
+                    </p>
+                  ) : null}
+                  {activeOrder.mergedIntoCode ? (
+                    <p className="text-sm text-secondary-neutral-gray">
+                      Phiếu này đã được gộp vào{" "}
+                      <Link className="font-medium text-action-blue" href={`/orders/${activeOrder.mergedIntoCode}`}>
+                        {activeOrder.mergedIntoCode}
+                      </Link>
+                      .
+                    </p>
+                  ) : null}
+                  {activeOrder.sourceCodes.length > 0 ? (
+                    <p className="text-sm text-secondary-neutral-gray">
+                      Đơn này được tạo do gộp các phiếu: {activeOrder.sourceCodes.join(", ")}.
+                    </p>
+                  ) : null}
+                </div>
+                {activeOrder.status === "Phiếu tạm" ? (
+                  <Link href={`/orders/new?phone=${encodeURIComponent(activeOrder.customer.phone)}`}>
+                    <Button variant="secondary">Chốt / gộp phiếu</Button>
+                  </Link>
+                ) : null}
+              </div>
+            </Card>
+            <div className="grid gap-8 xl:grid-cols-[1fr_380px]">
           <Card className="p-6">
             <div className="mb-6 flex items-center justify-between">
               <h2 className="text-lg font-semibold">
                 {isEditingDraft ? "Chỉnh sửa phiếu tạm" : "Sản phẩm đã đặt"}
               </h2>
               <span className="rounded-full bg-surface-container px-3 py-1 text-sm">
-                {isEditingDraft ? draftItems.length : order.items.length} sản phẩm
+                {isEditingDraft ? draftItems.length : activeOrder.items.length} sản phẩm
               </span>
             </div>
             {isEditingDraft ? (
@@ -462,7 +541,7 @@ export function OrderDetailClient({ code }: { code: string }) {
               </div>
             ) : (
               <div className="space-y-5">
-                {order.items.map((item) => (
+                {activeOrder.items.map((item) => (
                   <div
                     key={item.sku || item.name}
                     className="flex gap-4 rounded-xl bg-surface-container-low p-4"
@@ -492,17 +571,17 @@ export function OrderDetailClient({ code }: { code: string }) {
           <div className="space-y-6">
             <Card className="p-6">
               <h2 className="mb-4 font-semibold">Khách hàng</h2>
-              <p className="font-semibold">{order.customer.name}</p>
-              <Info icon={<Mail size={18} />} label="Thư điện tử" value={order.customer.email ?? "Chưa có email"} />
-              <Info icon={<Phone size={18} />} label="Số điện thoại" value={order.customer.phone} />
+              <p className="font-semibold">{activeOrder.customer.name}</p>
+              <Info icon={<Mail size={18} />} label="Thư điện tử" value={activeOrder.customer.email ?? "Chưa có email"} />
+              <Info icon={<Phone size={18} />} label="Số điện thoại" value={activeOrder.customer.phone} />
             </Card>
             <Card className="p-6">
               <h2 className="mb-4 font-semibold">Tóm tắt thanh toán</h2>
               <Summary
-                label={`Tạm tính (${isEditingDraft ? draftItems.length : order.items.length} sản phẩm)`}
-                value={isEditingDraft ? formatDisplayCurrency(editingSubtotal) : order.subtotal}
+                label={`Tạm tính (${isEditingDraft ? draftItems.length : activeOrder.items.length} sản phẩm)`}
+                value={isEditingDraft ? formatDisplayCurrency(editingSubtotal) : activeOrder.subtotal}
               />
-              {order.extraCharges.map((charge) => (
+              {activeOrder.extraCharges.map((charge) => (
                 <Summary key={charge.name} label={charge.name} value={charge.amountLabel} />
               ))}
               <div className="my-4 border-t border-soft-border-gray" />
@@ -511,15 +590,19 @@ export function OrderDetailClient({ code }: { code: string }) {
                 value={
                   isEditingDraft
                     ? formatDisplayCurrency(
-                        editingSubtotal + order.shippingFeeValue + order.taxValue + order.extraChargeTotal,
+                        editingSubtotal + activeOrder.shippingFeeValue + activeOrder.taxValue + activeOrder.extraChargeTotal,
                       )
-                    : order.total
+                    : activeOrder.total
                 }
                 strong
               />
             </Card>
           </div>
         </div>
+          </>
+        ) : (
+          <Card className="p-6 text-secondary-neutral-gray">Đang tải đơn hàng...</Card>
+        )}
       </div>
     </>
   );
