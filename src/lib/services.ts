@@ -217,28 +217,24 @@ export async function getStoreSettings() {
 export async function getStats() {
   noStore();
   const prisma = getPrisma();
-  const [orderCount, productCount, customerCount, paidRevenue, recentOrders, topProducts] =
-    await Promise.all([
-      prisma.order.count(),
-      prisma.product.count(),
-      prisma.customer.count(),
-      prisma.order.aggregate({
-        where: { status: { not: "CANCELLED" } },
-        _sum: { total: true },
-      }),
-      prisma.order.findMany({
-        take: 5,
-        include: { customer: true },
-        orderBy: { createdAt: "desc" },
-      }),
-      prisma.orderItem.groupBy({
-        by: ["name"],
-        _sum: { quantity: true },
-        orderBy: { _sum: { quantity: "desc" } },
-        take: 5,
-      }),
-    ]);
-
+  const orderCount = await prisma.order.count();
+  const productCount = await prisma.product.count();
+  const customerCount = await prisma.customer.count();
+  const paidRevenue = await prisma.order.aggregate({
+    where: { status: { not: "CANCELLED" } },
+    _sum: { total: true },
+  });
+  const recentOrders = await prisma.order.findMany({
+    take: 5,
+    include: { customer: true },
+    orderBy: { createdAt: "desc" },
+  });
+  const topProducts = await prisma.orderItem.groupBy({
+    by: ["name"],
+    _sum: { quantity: true },
+    orderBy: { _sum: { quantity: "desc" } },
+    take: 5,
+  });
   const cancelledCount = await prisma.order.count({
     where: { status: "CANCELLED" },
   });
