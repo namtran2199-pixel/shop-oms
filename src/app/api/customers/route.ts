@@ -1,4 +1,9 @@
+import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
+import {
+  CUSTOMER_PHONE_NULLABLE_MESSAGE,
+  isCustomerPhoneNullConstraintError,
+} from "@/lib/customer-phone-db";
 import { getPrisma } from "@/lib/prisma";
 import { getCustomerDetail, getCustomers } from "@/lib/services";
 
@@ -126,14 +131,30 @@ export async function POST(request: Request) {
     );
   }
 
-  const customer = await prisma.customer.create({
-    data: {
-      name,
-      phone: phone || null,
-      email,
-      address,
-    },
-  });
+  let customer;
+  try {
+    customer = await prisma.customer.create({
+      data: {
+        name,
+        phone: phone || null,
+        email,
+        address,
+      },
+    });
+  } catch (error) {
+    if (isCustomerPhoneNullConstraintError(error)) {
+      return NextResponse.json(
+        { error: CUSTOMER_PHONE_NULLABLE_MESSAGE },
+        { status: 500 },
+      );
+    }
+
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      throw error;
+    }
+
+    throw error;
+  }
 
   return NextResponse.json(
     {

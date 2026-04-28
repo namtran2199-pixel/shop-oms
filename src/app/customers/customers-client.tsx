@@ -418,7 +418,6 @@ export function CustomersClient() {
                 type="tel"
                 inputMode="numeric"
                 autoComplete="tel"
-                required
                 placeholder="0901234567"
               />
               <CustomerField

@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { OrderStatus, Prisma } from "@prisma/client";
 import { getPrisma } from "@/lib/prisma";
+import {
+  CUSTOMER_PHONE_NULLABLE_MESSAGE,
+  isCustomerPhoneNullConstraintError,
+} from "@/lib/customer-phone-db";
 import { getNextOrderCode } from "@/lib/order-code";
 import { getOrders } from "@/lib/services";
 
@@ -164,14 +168,25 @@ export async function POST(request: Request) {
     phone: normalizedPhone || null,
     ...(shippingAddress ? { address: shippingAddress } : {}),
   };
-  const customer = existingCustomer
-    ? await prisma.customer.update({
-        where: { id: existingCustomer.id },
-        data: customerData,
-      })
-    : await prisma.customer.create({
-        data: customerData,
-      });
+  let customer;
+  try {
+    customer = existingCustomer
+      ? await prisma.customer.update({
+          where: { id: existingCustomer.id },
+          data: customerData,
+        })
+      : await prisma.customer.create({
+          data: customerData,
+        });
+  } catch (error) {
+    if (isCustomerPhoneNullConstraintError(error)) {
+      return NextResponse.json(
+        { error: CUSTOMER_PHONE_NULLABLE_MESSAGE },
+        { status: 500 },
+      );
+    }
+    throw error;
+  }
 
   const orderItems = requestedItems.map((item) => {
     const product = products.find((row) => row.id === item.productId);

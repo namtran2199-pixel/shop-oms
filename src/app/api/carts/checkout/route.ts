@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
 import { OrderStatus, Prisma } from "@prisma/client";
+import {
+  CUSTOMER_PHONE_NULLABLE_MESSAGE,
+  isCustomerPhoneNullConstraintError,
+} from "@/lib/customer-phone-db";
 import { getPrisma } from "@/lib/prisma";
 import { getNextOrderCode } from "@/lib/order-code";
 
@@ -54,17 +58,28 @@ export async function POST(request: Request) {
   const existingCustomer = normalizedPhone
     ? existingCustomers.find((customer) => normalizePhone(customer.phone ?? "") === normalizedPhone)
     : null;
-  const customer = existingCustomer
-    ? await prisma.customer.update({
-        where: { id: existingCustomer.id },
-        data: { name: body.customerName.trim(), phone: normalizedPhone },
-      })
-    : await prisma.customer.create({
-        data: {
-          name: body.customerName.trim(),
-          phone: normalizedPhone || null,
-        },
-      });
+  let customer;
+  try {
+    customer = existingCustomer
+      ? await prisma.customer.update({
+          where: { id: existingCustomer.id },
+          data: { name: body.customerName.trim(), phone: normalizedPhone || null },
+        })
+      : await prisma.customer.create({
+          data: {
+            name: body.customerName.trim(),
+            phone: normalizedPhone || null,
+          },
+        });
+  } catch (error) {
+    if (isCustomerPhoneNullConstraintError(error)) {
+      return NextResponse.json(
+        { error: CUSTOMER_PHONE_NULLABLE_MESSAGE },
+        { status: 500 },
+      );
+    }
+    throw error;
+  }
 
   const orderItems = requestedItems.map((item) => {
     const product = products.find((row) => row.id === item.productId);

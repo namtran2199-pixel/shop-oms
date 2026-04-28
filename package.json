@@ -9,6 +9,7 @@
     "start": "next start",
     "lint": "eslint",
     "db:push": "tsx prisma/apply-schema.ts && prisma generate",
+    "db:fix:customer-phone-nullable": "tsx prisma/ensure-customer-phone-nullable.ts",
     "db:reset": "npm run db:push && npm run db:seed",
     "db:seed": "tsx prisma/seed.ts",
     "db:seed:customers": "tsx prisma/seed-customers-from-csv.ts",

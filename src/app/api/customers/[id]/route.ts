@@ -1,4 +1,8 @@
 import { NextResponse } from "next/server";
+import {
+  CUSTOMER_PHONE_NULLABLE_MESSAGE,
+  isCustomerPhoneNullConstraintError,
+} from "@/lib/customer-phone-db";
 import { getPrisma } from "@/lib/prisma";
 
 function normalizePhone(value: string) {
@@ -66,15 +70,26 @@ export async function PUT(
     );
   }
 
-  const customer = await prisma.customer.update({
-    where: { id },
-    data: {
-      name,
-      phone: phone || null,
-      email,
-      address,
-    },
-  });
+  let customer;
+  try {
+    customer = await prisma.customer.update({
+      where: { id },
+      data: {
+        name,
+        phone: phone || null,
+        email,
+        address,
+      },
+    });
+  } catch (error) {
+    if (isCustomerPhoneNullConstraintError(error)) {
+      return NextResponse.json(
+        { error: CUSTOMER_PHONE_NULLABLE_MESSAGE },
+        { status: 500 },
+      );
+    }
+    throw error;
+  }
 
   return NextResponse.json({
     data: {

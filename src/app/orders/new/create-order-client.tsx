@@ -85,6 +85,18 @@ function isValidVietnamPhone(value: string) {
   return /^0(3|5|7|8|9)\d{8}$/.test(value);
 }
 
+async function readErrorMessage(response: Response, fallback: string) {
+  const raw = await response.text();
+  if (!raw) return fallback;
+
+  try {
+    const payload = JSON.parse(raw) as { error?: string };
+    return payload.error ?? fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 function normalizeSearchText(value: string) {
   return value
     .normalize("NFD")
@@ -411,8 +423,9 @@ export function CreateOrderClient({
     });
 
     if (!response.ok) {
-      const payload = (await response.json()) as { error?: string };
-      setQuickCreateProductError(payload.error ?? "Không thể tạo sản phẩm mới.");
+      setQuickCreateProductError(
+        await readErrorMessage(response, "Không thể tạo sản phẩm mới."),
+      );
       setIsCreatingProduct(false);
       return;
     }
@@ -458,8 +471,7 @@ export function CreateOrderClient({
     });
 
     if (!response.ok) {
-      const payload = (await response.json()) as { error?: string };
-      setSubmitError(payload.error ?? "Không thể lưu phiếu tạm.");
+      setSubmitError(await readErrorMessage(response, "Không thể lưu phiếu tạm."));
       setIsSaving(false);
       return;
     }
@@ -493,8 +505,7 @@ export function CreateOrderClient({
     });
 
     if (!response.ok) {
-      const payload = (await response.json()) as { error?: string };
-      setSubmitError(payload.error ?? "Không thể thanh toán phiếu.");
+      setSubmitError(await readErrorMessage(response, "Không thể thanh toán phiếu."));
       setIsPaying(false);
       return;
     }
@@ -533,8 +544,7 @@ export function CreateOrderClient({
     });
 
     if (!response.ok) {
-      const payload = (await response.json()) as { error?: string };
-      setSubmitError(payload.error ?? "Không thể chốt phiếu tạm.");
+      setSubmitError(await readErrorMessage(response, "Không thể chốt phiếu tạm."));
       setIsMerging(false);
       return;
     }
