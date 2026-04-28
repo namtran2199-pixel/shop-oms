@@ -226,10 +226,14 @@ export function CreateOrderClient({ initialPhone = "" }: { initialPhone?: string
 
   useEffect(() => {
     if (!canLoadTempOrders) {
-      setTempOrders([]);
-      setSelectedTempOrders([]);
-      return;
+      const timer = window.setTimeout(() => {
+        setTempOrders([]);
+        setSelectedTempOrders([]);
+      }, 0);
+
+      return () => window.clearTimeout(timer);
     }
+
     let active = true;
 
     async function load() {
@@ -501,7 +505,7 @@ export function CreateOrderClient({ initialPhone = "" }: { initialPhone?: string
     }
 
     setPrintableOrder(detailPayload.data);
-    resetDraft();
+    resetCreateOrderState();
     setIsPaying(false);
   }
 
