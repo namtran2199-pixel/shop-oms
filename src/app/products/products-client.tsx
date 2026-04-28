@@ -22,6 +22,28 @@ type ProductsResponse = {
   };
 };
 
+type ProductCustomerHistoryRow = {
+  id: string;
+  orderCode: string;
+  customerName: string;
+  customerPhone: string;
+  tripName: string;
+  quantity: number;
+  unitPrice: string;
+  lineTotal: string;
+  date: string;
+};
+
+type ProductHistoryResponse = {
+  data: ProductCustomerHistoryRow[];
+  meta: {
+    total: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
+  };
+};
+
 const iconMap = { Headphones, Package, Plug, Smartphone, Watch };
 
 function formatCurrencyInput(value: string) {
@@ -39,6 +61,15 @@ export function ProductsClient() {
   const [note, setNote] = useState("");
   const [page, setPage] = useState(1);
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
+  const [selectedHistoryProduct, setSelectedHistoryProduct] = useState<ProductRow | null>(null);
+  const [historyRows, setHistoryRows] = useState<ProductCustomerHistoryRow[]>([]);
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyMeta, setHistoryMeta] = useState({
+    total: 0,
+    page: 1,
+    pageSize: 10,
+    totalPages: 1,
+  });
   const [meta, setMeta] = useState({
     total: 0,
     page: 1,
@@ -46,6 +77,7 @@ export function ProductsClient() {
     totalPages: 1,
   });
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -127,6 +159,40 @@ export function ProductsClient() {
     setNote(product.note);
   }
 
+  async function loadProductHistory(product: ProductRow) {
+    setSelectedHistoryProduct(product);
+    setHistoryPage(1);
+    setHistoryRows([]);
+  }
+
+  useEffect(() => {
+    if (!selectedHistoryProduct) return;
+    const productId = selectedHistoryProduct.id;
+
+    let active = true;
+
+    async function loadHistoryPage() {
+      setIsLoadingHistory(true);
+      const response = await fetch(
+        `/api/products/${productId}/customers?page=${historyPage}&pageSize=10`,
+      );
+      const payload = (await response.json()) as ProductHistoryResponse;
+      if (!active) return;
+      setHistoryRows(payload.data);
+      setHistoryMeta(payload.meta);
+      setIsLoadingHistory(false);
+    }
+
+    loadHistoryPage().catch(() => {
+      if (!active) return;
+      setIsLoadingHistory(false);
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [historyPage, selectedHistoryProduct]);
+
   return (
     <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_380px]">
       <div className="min-w-0 space-y-5">
@@ -181,12 +247,20 @@ export function ProductsClient() {
                     <td className="px-6 py-5 font-semibold">{product.price}</td>
                     <td className="px-6 py-5 text-secondary-neutral-gray">{product.note}</td>
                     <td className="px-6 py-5">
-                      <button
-                        className="text-secondary-neutral-gray hover:text-action-blue"
-                        onClick={() => startEditProduct(product)}
-                      >
-                        <Edit size={18} />
-                      </button>
+                      <div className="flex items-center gap-3">
+                        <button
+                          className="text-sm font-medium text-action-blue hover:underline"
+                          onClick={() => loadProductHistory(product)}
+                        >
+                          Đã bán cho ai
+                        </button>
+                        <button
+                          className="text-secondary-neutral-gray hover:text-action-blue"
+                          onClick={() => startEditProduct(product)}
+                        >
+                          <Edit size={18} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
@@ -194,6 +268,89 @@ export function ProductsClient() {
             </tbody>
           </table>
         </TableCard>
+
+        {selectedHistoryProduct ? (
+          <TableCard
+            className="border border-soft-border-gray"
+            currentPage={historyMeta.page}
+            totalPages={historyMeta.totalPages}
+            onPrevious={() => setHistoryPage((current) => Math.max(1, current - 1))}
+            onNext={() =>
+              setHistoryPage((current) => Math.min(historyMeta.totalPages, current + 1))
+            }
+            onPageChange={setHistoryPage}
+          >
+            <div className="flex items-start justify-between gap-3 border-b border-soft-border-gray px-6 py-5">
+              <div>
+                <h2 className="text-lg font-semibold">
+                  Khách đã mua: {selectedHistoryProduct.name}
+                </h2>
+                <p className="mt-1 text-sm text-secondary-neutral-gray">
+                  Danh sách các khách hàng đã mua sản phẩm này theo từng đơn.
+                </p>
+              </div>
+              <button
+                className="text-sm font-medium text-secondary-neutral-gray hover:text-near-black-ink"
+                onClick={() => {
+                  setSelectedHistoryProduct(null);
+                  setHistoryRows([]);
+                  setHistoryPage(1);
+                }}
+              >
+                Đóng
+              </button>
+            </div>
+
+            <table className="w-full min-w-[900px] text-left">
+              <thead className="bg-surface-container-low text-xs uppercase tracking-wide text-secondary-neutral-gray">
+                <tr>
+                  <th className="px-6 py-4 font-medium">Khách hàng</th>
+                  <th className="px-6 py-4 font-medium">Mã đơn</th>
+                  <th className="px-6 py-4 font-medium">Chuyến</th>
+                  <th className="px-6 py-4 font-medium">Số lượng</th>
+                  <th className="px-6 py-4 font-medium">Đơn giá</th>
+                  <th className="px-6 py-4 font-medium">Thành tiền</th>
+                  <th className="px-6 py-4 font-medium">Thời gian</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-soft-border-gray">
+                {isLoadingHistory ? (
+                  <tr>
+                    <td className="px-6 py-8 text-secondary-neutral-gray" colSpan={7}>
+                      Đang tải lịch sử bán...
+                    </td>
+                  </tr>
+                ) : null}
+
+                {!isLoadingHistory && historyRows.length === 0 ? (
+                  <tr>
+                    <td className="px-6 py-8 text-secondary-neutral-gray" colSpan={7}>
+                      Chưa có khách hàng nào mua sản phẩm này.
+                    </td>
+                  </tr>
+                ) : null}
+
+                {!isLoadingHistory &&
+                  historyRows.map((row) => (
+                    <tr key={row.id} className="bg-white hover:bg-surface-container-low">
+                      <td className="px-6 py-5">
+                        <div>
+                          <p className="font-medium">{row.customerName}</p>
+                          <p className="text-sm text-secondary-neutral-gray">{row.customerPhone}</p>
+                        </div>
+                      </td>
+                      <td className="px-6 py-5 font-medium">{row.orderCode}</td>
+                      <td className="px-6 py-5 text-secondary-neutral-gray">{row.tripName}</td>
+                      <td className="px-6 py-5">{row.quantity}</td>
+                      <td className="px-6 py-5">{row.unitPrice}</td>
+                      <td className="px-6 py-5 font-semibold">{row.lineTotal}</td>
+                      <td className="px-6 py-5 text-secondary-neutral-gray">{row.date}</td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </TableCard>
+        ) : null}
       </div>
       <Card className="h-fit p-6">
         <div className="mb-6 flex items-center justify-between gap-3">

@@ -3,6 +3,7 @@ import { OrderStatus, Prisma } from "@prisma/client";
 import { getPrisma } from "@/lib/prisma";
 import { getNextOrderCode } from "@/lib/order-code";
 import { formatCurrency, formatOrderTime } from "@/lib/format";
+import { resolveTripId } from "@/lib/trips";
 
 function normalizeText(value: string) {
   return value
@@ -20,6 +21,16 @@ function getInitialSearchText(value: string) {
     .filter(Boolean)
     .map((word) => word[0])
     .join("");
+}
+
+function getMergeGroupKey(customer: { name: string; phone: string | null }, customerId: string) {
+  const phone = normalizePhone(customer.phone ?? "");
+  if (phone) return `phone:${phone}`;
+
+  const normalizedName = normalizeText(customer.name);
+  if (normalizedName) return `name:${normalizedName}`;
+
+  return `customer:${customerId}`;
 }
 
 export async function GET(request: Request) {
@@ -44,10 +55,15 @@ export async function GET(request: Request) {
     orderBy: { createdAt: "desc" },
   });
 
+  const groupedCounts = new Map<string, number>();
+  rows.forEach((order) => {
+    const groupKey = getMergeGroupKey(order.customer, order.customerId);
+    groupedCounts.set(groupKey, (groupedCounts.get(groupKey) ?? 0) + 1);
+  });
+
   const candidates = rows
     .map((order) => {
-      const phone = normalizePhone(order.customer.phone ?? "");
-      const groupKey = phone ? `phone:${phone}` : `customer:${order.customerId}`;
+      const groupKey = getMergeGroupKey(order.customer, order.customerId);
       return {
         code: order.code,
         customer: order.customer.name,
@@ -122,18 +138,36 @@ export async function POST(request: Request) {
   }
 
   const customerPhone = normalizePhone(tempOrders[0].customer.phone ?? "");
+  const customerName = normalizeText(tempOrders[0].customer.name);
   const hasSameCustomer = customerPhone
     ? tempOrders.every((order) => normalizePhone(order.customer.phone ?? "") === customerPhone)
-    : tempOrders.every((order) => order.customerId === tempOrders[0].customerId);
+    : tempOrders.every((order) => normalizeText(order.customer.name) === customerName);
 
   if (!hasSameCustomer) {
     return NextResponse.json(
-      { error: "Chỉ có thể gộp các phiếu tạm cùng số điện thoại khách hàng." },
+      { error: "Chỉ có thể gộp các phiếu tạm cùng số điện thoại hoặc cùng tên khách hàng." },
       { status: 400 },
     );
   }
 
   const customerId = tempOrders[0].customerId;
+  const sourceTripId = tempOrders[0].tripId;
+  const hasSameTrip = tempOrders.every((order) => order.tripId === sourceTripId);
+  if (!hasSameTrip) {
+    return NextResponse.json(
+      { error: "Chỉ có thể gộp các phiếu tạm thuộc cùng một chuyến." },
+      { status: 400 },
+    );
+  }
+
+  const tripId = await resolveTripId(prisma, sourceTripId);
+  if (!tripId) {
+    return NextResponse.json(
+      { error: "Chưa có chuyến. Vui lòng tạo chuyến mới trước khi chốt đơn." },
+      { status: 400 },
+    );
+  }
+
   const groupedItems = new Map<
     string,
     {
@@ -171,8 +205,8 @@ export async function POST(request: Request) {
   const extraCharges =
     extraChargeIds.length > 0
       ? await prisma.extraCharge.findMany({
-          where: { id: { in: extraChargeIds }, isActive: true },
-        })
+        where: { id: { in: extraChargeIds }, isActive: true },
+      })
       : [];
   const extraChargeTotal = extraCharges.reduce((sum, charge) => sum + charge.amount, 0);
   const now = new Date();
@@ -185,11 +219,12 @@ export async function POST(request: Request) {
           data: {
             code,
             customerId,
-            status: OrderStatus.PROCESSING,
+            tripId,
+            status: OrderStatus.PAID,
             subtotal,
             total: subtotal + extraChargeTotal,
             shippingMethod,
-            paymentMethod: "Chưa ghi nhận",
+            paymentMethod: "Đã thanh toán",
             items: {
               create: items.map((item) => ({
                 productId: item.productId,

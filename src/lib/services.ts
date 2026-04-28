@@ -1,4 +1,5 @@
 import { unstable_noStore as noStore } from "next/cache";
+import { OrderStatus } from "@prisma/client";
 import {
   Headphones,
   Package,
@@ -15,6 +16,8 @@ import {
   formatOrderTime,
 } from "@/lib/format";
 
+const revenueStatuses: OrderStatus[] = [OrderStatus.PAID, OrderStatus.PROCESSING, OrderStatus.SHIPPED];
+
 const iconMap = {
   Headphones,
   Package,
@@ -23,6 +26,119 @@ const iconMap = {
   Watch,
 };
 
+function getVietnamNowParts(date = new Date()) {
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  const parts = formatter.formatToParts(date);
+
+  return {
+    year: Number(parts.find((part) => part.type === "year")?.value ?? "1970"),
+    month: Number(parts.find((part) => part.type === "month")?.value ?? "1"),
+    day: Number(parts.find((part) => part.type === "day")?.value ?? "1"),
+  };
+}
+
+function getVietnamRange(unit: "day" | "month" | "year", date = new Date()) {
+  const { year, month, day } = getVietnamNowParts(date);
+  const startUtc =
+    unit === "day"
+      ? Date.UTC(year, month - 1, day, -7, 0, 0, 0)
+      : unit === "month"
+        ? Date.UTC(year, month - 1, 1, -7, 0, 0, 0)
+        : Date.UTC(year, 0, 1, -7, 0, 0, 0);
+  const endUtc =
+    unit === "day"
+      ? Date.UTC(year, month - 1, day + 1, -7, 0, 0, 0)
+      : unit === "month"
+        ? Date.UTC(year, month, 1, -7, 0, 0, 0)
+        : Date.UTC(year + 1, 0, 1, -7, 0, 0, 0);
+
+  return {
+    start: new Date(startUtc),
+    end: new Date(endUtc),
+  };
+}
+
+type StatsPeriod = "day" | "month" | "year";
+
+function getStatsTargetDate(period: StatsPeriod, value?: string) {
+  const nowParts = getVietnamNowParts();
+  if (!value) {
+    return period === "day"
+      ? new Date(Date.UTC(nowParts.year, nowParts.month - 1, nowParts.day))
+      : period === "month"
+        ? new Date(Date.UTC(nowParts.year, nowParts.month - 1, 1))
+        : new Date(Date.UTC(nowParts.year, 0, 1));
+  }
+
+  if (period === "day") {
+    const [year, month, day] = value.split("-").map(Number);
+    if (year && month && day) return new Date(Date.UTC(year, month - 1, day));
+  }
+
+  if (period === "month") {
+    const [year, month] = value.split("-").map(Number);
+    if (year && month) return new Date(Date.UTC(year, month - 1, 1));
+  }
+
+  if (period === "year") {
+    const year = Number(value);
+    if (year) return new Date(Date.UTC(year, 0, 1));
+  }
+
+  return new Date();
+}
+
+function getRangeByTarget(period: StatsPeriod, targetDate: Date) {
+  if (period === "day") return getVietnamRange("day", targetDate);
+  if (period === "month") return getVietnamRange("month", targetDate);
+  return getVietnamRange("year", targetDate);
+}
+
+function formatPeriodLabel(period: StatsPeriod, date: Date) {
+  const formatter =
+    period === "day"
+      ? new Intl.DateTimeFormat("vi-VN", {
+          timeZone: "Asia/Ho_Chi_Minh",
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+        })
+      : period === "month"
+        ? new Intl.DateTimeFormat("vi-VN", {
+            timeZone: "Asia/Ho_Chi_Minh",
+            month: "2-digit",
+            year: "numeric",
+          })
+        : new Intl.DateTimeFormat("vi-VN", {
+            timeZone: "Asia/Ho_Chi_Minh",
+            year: "numeric",
+          });
+
+  return formatter.format(date);
+}
+
+function getHourlyLabel(date: Date) {
+  return new Intl.DateTimeFormat("vi-VN", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    hour: "2-digit",
+  }).format(date);
+}
+
+function getVietnamHour(date: Date) {
+  const formatter = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    hour: "2-digit",
+    hour12: false,
+  });
+  const parts = formatter.formatToParts(date);
+  return Number(parts.find((part) => part.type === "hour")?.value ?? "0");
+}
+
 export async function getOrders() {
   noStore();
   const prisma = getPrisma();
@@ -30,6 +146,9 @@ export async function getOrders() {
     include: {
       customer: true,
       items: true,
+      trip: {
+        select: { id: true, name: true },
+      },
       mergedOrders: {
         select: { code: true },
         orderBy: { createdAt: "asc" },
@@ -50,6 +169,7 @@ export async function getOrders() {
     status: formatOrderStatus(order.status),
     statusCode: order.status,
     shippingMethod: order.shippingMethod ?? "Chưa chọn",
+    tripName: order.trip?.name ?? "Chưa có chuyến",
     time: formatOrderTime(order.createdAt),
     items: order.items.map((item) => item.name).join(", "),
     sourceCodes: order.mergedOrders.map((mergedOrder) => mergedOrder.code),
@@ -65,6 +185,9 @@ export async function getOrderDetail(code: string) {
       where: { code },
     include: {
       customer: true,
+      trip: {
+        select: { id: true, name: true },
+      },
       mergedInto: { select: { code: true } },
       mergedOrders: {
         select: { code: true },
@@ -97,6 +220,7 @@ export async function getOrderDetail(code: string) {
       ...order.customer,
       phone: order.customer.phone ?? "",
     },
+    trip: order.trip ? { id: order.trip.id, name: order.trip.name } : null,
     status: formatOrderStatus(order.status),
     statusCode: order.status,
     sourceCodes: order.mergedOrders.map((mergedOrder) => mergedOrder.code),
@@ -147,6 +271,165 @@ export async function getProducts() {
     note: product.note ?? "",
     icon: iconMap[product.icon as keyof typeof iconMap] ?? Package,
   }));
+}
+
+export async function getTrips() {
+  return getTripsPage(1, 20);
+}
+
+export async function getTripsPage(page = 1, pageSize = 10) {
+  noStore();
+  const prisma = getPrisma();
+  const safePageSize = Math.min(50, Math.max(1, pageSize));
+  const total = await prisma.trip.count();
+  const totalPages = Math.max(1, Math.ceil(total / safePageSize));
+  const currentPage = Math.min(Math.max(page, 1), totalPages);
+  const rows = await prisma.trip.findMany({
+    include: {
+      orders: {
+        where: { status: { in: revenueStatuses } },
+        select: { id: true, total: true },
+      },
+    },
+    orderBy: { createdAt: "desc" },
+    skip: (currentPage - 1) * safePageSize,
+    take: safePageSize,
+  });
+
+  return {
+    data: rows.map((trip) => {
+      const totalValue = trip.orders.reduce((sum, order) => sum + order.total, 0);
+
+      return {
+        id: trip.id,
+        name: trip.name,
+        totalValue,
+        totalLabel: formatCurrency(totalValue),
+        orderCount: trip.orders.length,
+        createdAtLabel: formatOrderTime(trip.createdAt),
+      };
+    }),
+    meta: {
+      total,
+      page: currentPage,
+      pageSize: safePageSize,
+      totalPages,
+    },
+  };
+}
+
+export async function getTripDetail(tripId: string, page = 1, pageSize = 10) {
+  noStore();
+  const prisma = getPrisma();
+  const trip = await prisma.trip.findUnique({
+    where: { id: tripId },
+  });
+
+  if (!trip) return null;
+
+  const safePageSize = Math.min(50, Math.max(1, pageSize));
+  const orderCount = await prisma.order.count({
+    where: { tripId, status: { in: revenueStatuses } },
+  });
+  const totalPages = Math.max(1, Math.ceil(orderCount / safePageSize));
+  const currentPage = Math.min(Math.max(page, 1), totalPages);
+  const [orderAggregate, orders] = await Promise.all([
+    prisma.order.aggregate({
+      where: { tripId, status: { in: revenueStatuses } },
+      _sum: { total: true },
+    }),
+    prisma.order.findMany({
+      where: { tripId, status: { in: revenueStatuses } },
+      include: {
+        customer: true,
+        items: true,
+      },
+      orderBy: { createdAt: "desc" },
+      skip: (currentPage - 1) * safePageSize,
+      take: safePageSize,
+    }),
+  ]);
+
+  return {
+    id: trip.id,
+    name: trip.name,
+    totalValue: orderAggregate._sum.total ?? 0,
+    totalLabel: formatCurrency(orderAggregate._sum.total ?? 0),
+    orderCount,
+    createdAtLabel: formatOrderTime(trip.createdAt),
+    orders: orders.map((order) => ({
+      id: order.code,
+      customer: order.customer.name,
+      phone: order.customer.phone ?? "",
+      total: formatCurrency(order.total),
+      totalValue: order.total,
+      status: formatOrderStatus(order.status),
+      shippingMethod: order.shippingMethod ?? "Chưa chọn",
+      time: formatOrderTime(order.createdAt),
+      items: order.items.map((item) => item.name).join(", "),
+    })),
+    meta: {
+      total: orderCount,
+      page: currentPage,
+      pageSize: safePageSize,
+      totalPages,
+    },
+  };
+}
+
+export async function getProductCustomerHistory(
+  productId: string,
+  tripId?: string | null,
+  page = 1,
+  pageSize = 10,
+) {
+  noStore();
+  const prisma = getPrisma();
+  const safePageSize = Math.min(50, Math.max(1, pageSize));
+  const where = {
+    productId,
+    order: {
+      status: { in: revenueStatuses },
+      ...(tripId ? { tripId } : {}),
+    },
+  };
+  const total = await prisma.orderItem.count({ where });
+  const totalPages = Math.max(1, Math.ceil(total / safePageSize));
+  const currentPage = Math.min(Math.max(page, 1), totalPages);
+  const rows = await prisma.orderItem.findMany({
+    where,
+    include: {
+      order: {
+        include: {
+          customer: true,
+          trip: true,
+        },
+      },
+    },
+    orderBy: { order: { createdAt: "desc" } },
+    skip: (currentPage - 1) * safePageSize,
+    take: safePageSize,
+  });
+
+  return {
+    data: rows.map((item) => ({
+      id: item.id,
+      orderCode: item.order.code,
+      customerName: item.order.customer.name,
+      customerPhone: item.order.customer.phone ?? "",
+      tripName: item.order.trip?.name ?? "Chưa có chuyến",
+      quantity: item.quantity,
+      unitPrice: formatCurrency(item.unitPrice),
+      lineTotal: formatCurrency(item.unitPrice * item.quantity),
+      date: formatOrderTime(item.order.createdAt),
+    })),
+    meta: {
+      total,
+      page: currentPage,
+      pageSize: safePageSize,
+      totalPages,
+    },
+  };
 }
 
 export async function getCustomers() {
@@ -216,15 +499,19 @@ export async function getStoreSettings() {
   return prisma.storeSetting.findUnique({ where: { id: "default" } });
 }
 
-export async function getStats() {
+export async function getStats(period: StatsPeriod = "month", periodValue?: string) {
   noStore();
   const prisma = getPrisma();
-  const orderCount = await prisma.order.count();
+  const targetDate = getStatsTargetDate(period, periodValue);
+  const selectedRange = getRangeByTarget(period, targetDate);
+  const orderCount = await prisma.order.count({
+    where: { status: { in: revenueStatuses } },
+  });
   const productCount = await prisma.product.count();
   const customerCount = await prisma.customer.count();
   const paidRevenue = await prisma.order.aggregate({
-    where: { status: { not: "CANCELLED" } },
-    _sum: { total: true },
+    where: { status: { in: revenueStatuses } },
+    _sum: { subtotal: true },
   });
   const recentOrders = await prisma.order.findMany({
     take: 5,
@@ -241,20 +528,120 @@ export async function getStats() {
     where: { status: "CANCELLED" },
   });
   const completedCount = await prisma.order.count({
-    where: { status: { not: "CANCELLED" } },
+    where: { status: { in: revenueStatuses } },
   });
   const averageOrderValue =
-    completedCount > 0 ? Math.round((paidRevenue._sum.total ?? 0) / completedCount) : 0;
+    completedCount > 0 ? Math.round((paidRevenue._sum.subtotal ?? 0) / completedCount) : 0;
+  const periodOrders = await prisma.order.findMany({
+    where: {
+      status: { in: revenueStatuses },
+      createdAt: { gte: selectedRange.start, lt: selectedRange.end },
+    },
+    include: {
+      items: true,
+    },
+    orderBy: { createdAt: "asc" },
+  });
+
+  const revenueSeries =
+    period === "day"
+      ? Array.from({ length: 24 }, (_, hour) => {
+          const rows = periodOrders.filter((order) => {
+            const orderHour = getVietnamHour(order.createdAt);
+            return orderHour === hour;
+          });
+          const revenue = rows.reduce((sum, order) => sum + order.subtotal, 0);
+          return {
+            label: `${String(hour).padStart(2, "0")}:00`,
+            revenue,
+            revenueLabel: formatCurrency(revenue),
+            orders: rows.length,
+          };
+        })
+      : period === "month"
+        ? (() => {
+            const parts = getVietnamNowParts(targetDate);
+            const daysInMonth = new Date(parts.year, parts.month, 0).getDate();
+            return Array.from({ length: daysInMonth }, (_, index) => {
+              const day = index + 1;
+              const rows = periodOrders.filter((order) => {
+                const orderParts = getVietnamNowParts(order.createdAt);
+                return orderParts.day === day;
+              });
+              const revenue = rows.reduce((sum, order) => sum + order.subtotal, 0);
+              return {
+                label: String(day),
+                revenue,
+                revenueLabel: formatCurrency(revenue),
+                orders: rows.length,
+              };
+            });
+          })()
+        : Array.from({ length: 12 }, (_, index) => {
+            const month = index + 1;
+            const rows = periodOrders.filter((order) => {
+              const orderParts = getVietnamNowParts(order.createdAt);
+              return orderParts.month === month;
+            });
+            const revenue = rows.reduce((sum, order) => sum + order.subtotal, 0);
+            return {
+              label: `T${month}`,
+              revenue,
+              revenueLabel: formatCurrency(revenue),
+              orders: rows.length,
+            };
+          });
+
+  const statusMap = new Map<string, { label: string; value: number }>();
+  periodOrders.forEach((order) => {
+    const label = formatOrderStatus(order.status);
+    const current = statusMap.get(label);
+    if (current) {
+      current.value += 1;
+      return;
+    }
+    statusMap.set(label, { label, value: 1 });
+  });
+
+  const topProductsInPeriod = Array.from(
+    periodOrders
+      .flatMap((order) => order.items)
+      .reduce((map, item) => {
+        map.set(item.name, (map.get(item.name) ?? 0) + item.quantity);
+        return map;
+      }, new Map<string, number>())
+      .entries(),
+  )
+    .map(([name, quantity]) => ({ name, quantity }))
+    .sort((a, b) => b.quantity - a.quantity)
+    .slice(0, 5);
 
   return {
     cards: [
-      { label: "Doanh thu", value: formatCurrency(paidRevenue._sum.total ?? 0) },
+      { label: "Doanh thu", value: formatCurrency(paidRevenue._sum.subtotal ?? 0) },
       { label: "Đơn hàng", value: String(orderCount) },
       { label: "Khách hàng", value: String(customerCount) },
       { label: "Sản phẩm", value: String(productCount) },
       { label: "Giá trị đơn TB", value: formatCurrency(averageOrderValue) },
       { label: "Đơn đã hủy", value: String(cancelledCount) },
     ],
+    chartFilter: {
+      period,
+      periodLabel: formatPeriodLabel(period, targetDate),
+      periodValue:
+        period === "day"
+          ? `${getVietnamNowParts(targetDate).year}-${String(getVietnamNowParts(targetDate).month).padStart(2, "0")}-${String(getVietnamNowParts(targetDate).day).padStart(2, "0")}`
+          : period === "month"
+            ? `${getVietnamNowParts(targetDate).year}-${String(getVietnamNowParts(targetDate).month).padStart(2, "0")}`
+            : String(getVietnamNowParts(targetDate).year),
+    },
+    charts: {
+      revenueSeries,
+      statusSeries: Array.from(statusMap.values()),
+      topProductsSeries: topProductsInPeriod,
+      periodRevenue: formatCurrency(periodOrders.reduce((sum, order) => sum + order.subtotal, 0)),
+      periodOrderCount: periodOrders.length,
+    },
     recentOrders: recentOrders.map((order) => ({
       code: order.code,
       customer: order.customer.name,

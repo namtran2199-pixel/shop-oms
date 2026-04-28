@@ -10,6 +10,7 @@
     "lint": "eslint",
     "db:push": "tsx prisma/apply-schema.ts && prisma generate",
     "db:fix:customer-phone-nullable": "tsx prisma/ensure-customer-phone-nullable.ts",
+    "db:fix:add-trips": "tsx prisma/ensure-trips.ts",
     "db:reset": "npm run db:push && npm run db:seed",
     "db:seed": "tsx prisma/seed.ts",
     "db:seed:customers": "tsx prisma/seed-customers-from-csv.ts",
@@ -23,7 +24,8 @@
     "lucide-react": "^1.9.0",
     "next": "16.2.4",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "recharts": "^3.8.1"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

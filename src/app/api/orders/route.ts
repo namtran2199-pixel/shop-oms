@@ -7,6 +7,7 @@ import {
 } from "@/lib/customer-phone-db";
 import { getNextOrderCode } from "@/lib/order-code";
 import { getOrders } from "@/lib/services";
+import { resolveTripId } from "@/lib/trips";
 
 const statusMap: Record<string, OrderStatus> = {
   "Phiếu tạm": OrderStatus.DRAFT,
@@ -103,6 +104,7 @@ export async function POST(request: Request) {
   const body = (await request.json()) as {
     customerName?: string;
     phone?: string;
+    tripId?: string;
     productId?: string;
     quantity?: number;
     status?: string;
@@ -146,6 +148,14 @@ export async function POST(request: Request) {
   }
 
   const prisma = getPrisma();
+  const tripId = await resolveTripId(prisma, body.tripId?.trim() || null);
+  if (!tripId) {
+    return NextResponse.json(
+      { error: "Chưa có chuyến. Vui lòng tạo chuyến mới trước khi tạo đơn." },
+      { status: 400 },
+    );
+  }
+
   const products = await prisma.product.findMany({
     where: { id: { in: requestedItems.map((item) => item.productId) } },
   });
@@ -223,6 +233,7 @@ export async function POST(request: Request) {
           data: {
             code,
             customerId: customer.id,
+            tripId,
             status,
             subtotal,
             total: subtotal + extraChargeTotal,

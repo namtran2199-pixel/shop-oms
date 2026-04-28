@@ -95,7 +95,14 @@ export async function waitForPrintableReceiptAssets() {
   await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 }
 
-export function OrderDetailClient({ code }: { code: string }) {
+export function OrderDetailClient({
+  code,
+  batchCodes,
+}: {
+  code: string;
+  batchCodes: string[];
+}) {
+  const [activeCode, setActiveCode] = useState(code);
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [products, setProducts] = useState<ProductOption[]>([]);
   const [draftItems, setDraftItems] = useState<EditableOrderItem[]>([]);
@@ -103,17 +110,44 @@ export function OrderDetailClient({ code }: { code: string }) {
   const [isEditingDraft, setIsEditingDraft] = useState(false);
   const [isSavingDraft, setIsSavingDraft] = useState(false);
   const [isLoadingProducts, setIsLoadingProducts] = useState(false);
+  const [isLoadingOrder, setIsLoadingOrder] = useState(true);
   const [editError, setEditError] = useState("");
+  const hasBatchTabs = batchCodes.length > 1;
+
+  const batchQueryString = useMemo(() => {
+    if (batchCodes.length <= 1) return "";
+    return new URLSearchParams({ batch: batchCodes.join(",") }).toString();
+  }, [batchCodes]);
 
   useEffect(() => {
+    let active = true;
+
     async function loadOrder() {
-      const response = await fetch(`/api/orders/${code}`);
+      setIsLoadingOrder(true);
+      const response = await fetch(`/api/orders/${activeCode}`);
       const payload = (await response.json()) as { data: OrderDetail };
+      if (!active) return;
       setOrder(payload.data);
+      setIsLoadingOrder(false);
     }
 
-    loadOrder();
-  }, [code]);
+    loadOrder().catch(() => {
+      if (!active) return;
+      setOrder(null);
+      setIsLoadingOrder(false);
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [activeCode]);
+
+  function resetDraftEditor() {
+    setIsEditingDraft(false);
+    setDraftItems([]);
+    setEditError("");
+    setProductSearch("");
+  }
 
   const productKeyword = normalizeSearchText(productSearch);
   const filteredProducts = useMemo(() => {
@@ -292,267 +326,314 @@ export function OrderDetailClient({ code }: { code: string }) {
     });
   }
 
+  function goToBatchOrder(nextCode: string) {
+    if (nextCode === activeCode) return;
+    const nextHref = batchQueryString
+      ? `/orders/${nextCode}?${batchQueryString}`
+      : `/orders/${nextCode}`;
+    resetDraftEditor();
+    window.history.replaceState(window.history.state, "", nextHref);
+    setActiveCode(nextCode);
+  }
+
   if (!order) {
     return <div className="text-secondary-neutral-gray">Đang tải đơn hàng...</div>;
   }
 
-  const canPrint = order.status !== "Đã gộp";
+  const activeOrder = order.code === activeCode ? order : null;
+  const canPrint = activeOrder ? activeOrder.status !== "Phiếu tạm" && activeOrder.status !== "Đã gộp" : false;
   const editingSubtotal = draftItems.reduce((sum, item) => sum + item.unitPrice * item.qty, 0);
 
   return (
     <>
-      <PrintableReceipt order={order} />
+      {activeOrder ? <PrintableReceipt order={activeOrder} /> : null}
       <div className="screen-only">
-        <PageHeader
-          title={`Đơn hàng #${order.code}`}
-          description={`Được tạo lúc ${order.createdAtLabel}`}
-          actions={
-            <>
-              {order.status === "Phiếu tạm" ? (
-                isEditingDraft ? (
-                  <>
-                    <Button variant="secondary" onClick={cancelEditingDraft}>
-                      Hủy sửa
-                    </Button>
-                    <Button onClick={saveDraftChanges}>
-                      {isSavingDraft ? "Đang lưu..." : "Lưu phiếu"}
-                    </Button>
-                  </>
-                ) : (
-                  <Button variant="secondary" onClick={() => void startEditingDraft()}>
-                    Sửa phiếu
-                  </Button>
-                )
-              ) : null}
-              {canPrint ? (
-                <Button variant="secondary" onClick={printOrder}>
-                  <Printer size={17} />
-                  In đơn
-                </Button>
-              ) : null}
-            </>
-          }
-        />
-        <Card className="mb-6 p-5">
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div>
-              <div className="mb-2">
-                <StatusBadge status={order.status} />
-              </div>
-              {order.status === "Phiếu tạm" ? (
-                <p className="text-sm text-secondary-neutral-gray">
-                  Phiếu này chưa phải bill cuối. Khi chuẩn bị ship, hãy chốt phiếu này hoặc gộp
-                  cùng các phiếu tạm khác của khách rồi mới in bill.
-                </p>
-              ) : null}
-              {order.mergedIntoCode ? (
-                <p className="text-sm text-secondary-neutral-gray">
-                  Phiếu này đã được gộp vào{" "}
-                  <Link className="font-medium text-action-blue" href={`/orders/${order.mergedIntoCode}`}>
-                    {order.mergedIntoCode}
-                  </Link>
-                  .
-                </p>
-              ) : null}
-              {order.sourceCodes.length > 0 ? (
-                <p className="text-sm text-secondary-neutral-gray">
-                  Đơn này được tạo do gộp các phiếu: {order.sourceCodes.join(", ")}.
-                </p>
-              ) : null}
+        {hasBatchTabs ? (
+          <Card className="mb-6 overflow-hidden p-0">
+            <div className="border-b border-soft-border-gray px-5 py-3">
+              <p className="text-sm font-medium text-on-surface">Đang xử lý {batchCodes.length} đơn hàng</p>
+              <p className="mt-1 text-xs text-secondary-neutral-gray">
+                Chọn từng tab để mở nhanh chi tiết của các đơn đã chọn từ danh sách.
+              </p>
             </div>
-            {order.status === "Phiếu tạm" ? (
-              <Link href={`/orders/new?phone=${encodeURIComponent(order.customer.phone)}`}>
-                <Button variant="secondary">Chốt / gộp phiếu</Button>
-              </Link>
-            ) : null}
-          </div>
-        </Card>
-        <div className="grid gap-8 xl:grid-cols-[1fr_380px]">
-          <Card className="p-6">
-            <div className="mb-6 flex items-center justify-between">
-              <h2 className="text-lg font-semibold">
-                {isEditingDraft ? "Chỉnh sửa phiếu tạm" : "Sản phẩm đã đặt"}
-              </h2>
-              <span className="rounded-full bg-surface-container px-3 py-1 text-sm">
-                {isEditingDraft ? draftItems.length : order.items.length} sản phẩm
-              </span>
-            </div>
-            {isEditingDraft ? (
-              <div className="space-y-5">
-                <div className="relative">
-                  <Search
-                    className="absolute left-3 top-1/2 -translate-y-1/2 text-secondary-neutral-gray"
-                    size={18}
-                  />
-                  <input
-                    className="focus-ring h-10 w-full rounded-full border border-soft-border-gray bg-surface-container-lowest pl-10 pr-4 text-[15px]"
-                    placeholder="Tìm để thêm sản phẩm..."
-                    value={productSearch}
-                    onChange={(event) => setProductSearch(event.target.value)}
-                  />
-                </div>
-                {productSearch.trim() ? (
-                  <div className="rounded-2xl border border-soft-border-gray bg-surface-container-low p-3">
-                    {isLoadingProducts ? (
-                      <p className="text-sm text-secondary-neutral-gray">Đang tải sản phẩm...</p>
-                    ) : filteredProducts.length > 0 ? (
-                      <div className="space-y-2">
-                        {filteredProducts.map((product) => (
-                          <button
-                            key={product.id}
-                            className="flex w-full items-center justify-between rounded-xl bg-white px-4 py-3 text-left hover:bg-surface-container"
-                            onClick={() => addProductToDraft(product)}
-                          >
-                            <span>
-                              <span className="block font-medium">{product.name}</span>
-                              <span className="text-sm text-secondary-neutral-gray">
-                                {product.note || "Không có ghi chú"}
-                              </span>
-                            </span>
-                            <span className="font-semibold">{product.price}</span>
-                          </button>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-sm text-secondary-neutral-gray">
-                        Không tìm thấy sản phẩm phù hợp.
-                      </p>
-                    )}
-                  </div>
-                ) : null}
-                {editError ? (
-                  <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-error">
-                    {editError}
-                  </div>
-                ) : null}
-                <div className="space-y-4">
-                  {draftItems.map((item) => (
-                    <div
-                      key={item.productId}
-                      className="rounded-xl border border-soft-border-gray bg-surface-container-low p-4"
+            <div className="overflow-x-auto px-3 py-3">
+              <div className="flex min-w-max items-center gap-2">
+                {batchCodes.map((batchCode) => {
+                  const isActive = batchCode === activeCode;
+
+                  return (
+                    <button
+                      key={batchCode}
+                      type="button"
+                      onClick={() => goToBatchOrder(batchCode)}
+                      className={`focus-ring inline-flex h-11 items-center rounded-full border px-4 text-sm font-semibold transition ${isActive
+                          ? "border-action-blue bg-action-blue text-pure-white shadow-[0_2px_8px_rgba(0,113,227,0.2)]"
+                          : "border-soft-border-gray bg-surface-container-lowest text-near-black-ink hover:border-mid-border-gray hover:bg-surface-container-low"
+                        }`}
                     >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
+                      {batchCode}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </Card>
+        ) : null}
+        {activeOrder && !isLoadingOrder ? (
+          <>
+            <PageHeader
+              title={`Đơn hàng #${activeOrder.code}`}
+              description={`Được tạo lúc ${activeOrder.createdAtLabel}`}
+              actions={
+                <>
+                  {activeOrder.status === "Phiếu tạm" ? (
+                    isEditingDraft ? (
+                      <>
+                        <Button variant="secondary" onClick={cancelEditingDraft}>
+                          Hủy sửa
+                        </Button>
+                        <Button onClick={saveDraftChanges}>
+                          {isSavingDraft ? "Đang lưu..." : "Lưu phiếu"}
+                        </Button>
+                      </>
+                    ) : (
+                      <Button variant="secondary" onClick={() => void startEditingDraft()}>
+                        Sửa phiếu
+                      </Button>
+                    )
+                  ) : null}
+                  {canPrint ? (
+                    <Button variant="secondary" onClick={printOrder}>
+                      <Printer size={17} />
+                      In đơn
+                    </Button>
+                  ) : null}
+                </>
+              }
+            />
+            <Card className="mb-6 p-5">
+              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <div className="mb-2">
+                    <StatusBadge status={activeOrder.status} />
+                  </div>
+                  {activeOrder.status === "Phiếu tạm" ? (
+                    <p className="text-sm text-secondary-neutral-gray">
+                      Phiếu này chưa phải bill cuối. Khi chuẩn bị ship, hãy chốt phiếu này hoặc gộp
+                      cùng các phiếu tạm khác của khách rồi mới in bill.
+                    </p>
+                  ) : null}
+                  {activeOrder.mergedIntoCode ? (
+                    <p className="text-sm text-secondary-neutral-gray">
+                      Phiếu này đã được gộp vào{" "}
+                      <Link className="font-medium text-action-blue" href={`/orders/${activeOrder.mergedIntoCode}`}>
+                        {activeOrder.mergedIntoCode}
+                      </Link>
+                      .
+                    </p>
+                  ) : null}
+                  {activeOrder.sourceCodes.length > 0 ? (
+                    <p className="text-sm text-secondary-neutral-gray">
+                      Đơn này được tạo do gộp các phiếu: {activeOrder.sourceCodes.join(", ")}.
+                    </p>
+                  ) : null}
+                </div>
+                {activeOrder.status === "Phiếu tạm" ? (
+                  <Link href={`/orders/new?phone=${encodeURIComponent(activeOrder.customer.phone)}`}>
+                    <Button variant="secondary">Chốt / gộp phiếu</Button>
+                  </Link>
+                ) : null}
+              </div>
+            </Card>
+            <div className="grid gap-8 xl:grid-cols-[1fr_380px]">
+              <Card className="p-6">
+                <div className="mb-6 flex items-center justify-between">
+                  <h2 className="text-lg font-semibold">
+                    {isEditingDraft ? "Chỉnh sửa phiếu tạm" : "Sản phẩm đã đặt"}
+                  </h2>
+                  <span className="rounded-full bg-surface-container px-3 py-1 text-sm">
+                    {isEditingDraft ? draftItems.length : activeOrder.items.length} sản phẩm
+                  </span>
+                </div>
+                {isEditingDraft ? (
+                  <div className="space-y-5">
+                    <div className="relative">
+                      <Search
+                        className="absolute left-3 top-1/2 -translate-y-1/2 text-secondary-neutral-gray"
+                        size={18}
+                      />
+                      <input
+                        className="focus-ring h-10 w-full rounded-full border border-soft-border-gray bg-surface-container-lowest pl-10 pr-4 text-[15px]"
+                        placeholder="Tìm để thêm sản phẩm..."
+                        value={productSearch}
+                        onChange={(event) => setProductSearch(event.target.value)}
+                      />
+                    </div>
+                    {productSearch.trim() ? (
+                      <div className="rounded-2xl border border-soft-border-gray bg-surface-container-low p-3">
+                        {isLoadingProducts ? (
+                          <p className="text-sm text-secondary-neutral-gray">Đang tải sản phẩm...</p>
+                        ) : filteredProducts.length > 0 ? (
+                          <div className="space-y-2">
+                            {filteredProducts.map((product) => (
+                              <button
+                                key={product.id}
+                                className="flex w-full items-center justify-between rounded-xl bg-white px-4 py-3 text-left hover:bg-surface-container"
+                                onClick={() => addProductToDraft(product)}
+                              >
+                                <span>
+                                  <span className="block font-medium">{product.name}</span>
+                                  <span className="text-sm text-secondary-neutral-gray">
+                                    {product.note || "Không có ghi chú"}
+                                  </span>
+                                </span>
+                                <span className="font-semibold">{product.price}</span>
+                              </button>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-sm text-secondary-neutral-gray">
+                            Không tìm thấy sản phẩm phù hợp.
+                          </p>
+                        )}
+                      </div>
+                    ) : null}
+                    {editError ? (
+                      <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-error">
+                        {editError}
+                      </div>
+                    ) : null}
+                    <div className="space-y-4">
+                      {draftItems.map((item) => (
+                        <div
+                          key={item.productId}
+                          className="rounded-xl border border-soft-border-gray bg-surface-container-low p-4"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <h3 className="font-semibold">{item.name}</h3>
+                              <p className="mt-1 text-sm text-secondary-neutral-gray">{item.detail}</p>
+                              <p className="mt-2 font-mono text-xs text-on-surface-variant">
+                                SKU: {item.sku}
+                              </p>
+                            </div>
+                            <button
+                              className="rounded-full p-2 text-secondary-neutral-gray hover:bg-white hover:text-error"
+                              onClick={() => removeDraftItem(item.productId)}
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                          <div className="mt-4 grid gap-3 md:grid-cols-3">
+                            <label className="block">
+                              <span className="mb-2 block text-sm text-secondary-neutral-gray">
+                                Số lượng
+                              </span>
+                              <input
+                                className="focus-ring h-11 w-full rounded-full border border-soft-border-gray bg-white px-4"
+                                inputMode="numeric"
+                                value={String(item.qty)}
+                                onChange={(event) =>
+                                  updateDraftQuantity(item.productId, Number(event.target.value))
+                                }
+                              />
+                            </label>
+                            <label className="block">
+                              <span className="mb-2 block text-sm text-secondary-neutral-gray">
+                                Đơn giá
+                              </span>
+                              <input
+                                className="focus-ring h-11 w-full rounded-full border border-soft-border-gray bg-white px-4"
+                                inputMode="numeric"
+                                value={formatCurrencyInput(item.unitPrice)}
+                                onChange={(event) =>
+                                  updateDraftUnitPrice(
+                                    item.productId,
+                                    Number(event.target.value.replace(/\D/g, "")),
+                                  )
+                                }
+                              />
+                            </label>
+                            <div className="rounded-2xl bg-white px-4 py-3">
+                              <p className="text-sm text-secondary-neutral-gray">Thành tiền</p>
+                              <p className="mt-1 text-lg font-semibold">
+                                {formatDisplayCurrency(item.unitPrice * item.qty)}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      {draftItems.length === 0 ? (
+                        <div className="rounded-xl border border-dashed border-soft-border-gray px-4 py-8 text-center text-secondary-neutral-gray">
+                          Phiếu tạm chưa có sản phẩm. Tìm và thêm sản phẩm để tiếp tục.
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-5">
+                    {activeOrder.items.map((item) => (
+                      <div
+                        key={item.sku || item.name}
+                        className="flex gap-4 rounded-xl bg-surface-container-low p-4"
+                      >
+                        <div className="grid h-14 w-14 shrink-0 place-items-center rounded-lg bg-white text-action-blue" />
+                        <div className="flex-1">
                           <h3 className="font-semibold">{item.name}</h3>
                           <p className="mt-1 text-sm text-secondary-neutral-gray">{item.detail}</p>
                           <p className="mt-2 font-mono text-xs text-on-surface-variant">
                             SKU: {item.sku}
                           </p>
                         </div>
-                        <button
-                          className="rounded-full p-2 text-secondary-neutral-gray hover:bg-white hover:text-error"
-                          onClick={() => removeDraftItem(item.productId)}
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                      <div className="mt-4 grid gap-3 md:grid-cols-3">
-                        <label className="block">
-                          <span className="mb-2 block text-sm text-secondary-neutral-gray">
-                            Số lượng
-                          </span>
-                          <input
-                            className="focus-ring h-11 w-full rounded-full border border-soft-border-gray bg-white px-4"
-                            inputMode="numeric"
-                            value={String(item.qty)}
-                            onChange={(event) =>
-                              updateDraftQuantity(item.productId, Number(event.target.value))
-                            }
-                          />
-                        </label>
-                        <label className="block">
-                          <span className="mb-2 block text-sm text-secondary-neutral-gray">
-                            Đơn giá
-                          </span>
-                          <input
-                            className="focus-ring h-11 w-full rounded-full border border-soft-border-gray bg-white px-4"
-                            inputMode="numeric"
-                            value={formatCurrencyInput(item.unitPrice)}
-                            onChange={(event) =>
-                              updateDraftUnitPrice(
-                                item.productId,
-                                Number(event.target.value.replace(/\D/g, "")),
-                              )
-                            }
-                          />
-                        </label>
-                        <div className="rounded-2xl bg-white px-4 py-3">
-                          <p className="text-sm text-secondary-neutral-gray">Thành tiền</p>
-                          <p className="mt-1 text-lg font-semibold">
-                            {formatDisplayCurrency(item.unitPrice * item.qty)}
-                          </p>
+                        <div className="text-right">
+                          <p className="text-sm text-secondary-neutral-gray">SL: {item.qty}</p>
+                          {item.unitPrice < item.originalUnitPrice ? (
+                            <p className="mt-2 text-sm text-secondary-neutral-gray line-through">
+                              {formatDisplayCurrency(item.originalUnitPrice)}
+                            </p>
+                          ) : null}
+                          <p className="mt-2 font-semibold">{item.price}</p>
                         </div>
                       </div>
-                    </div>
-                  ))}
-                  {draftItems.length === 0 ? (
-                    <div className="rounded-xl border border-dashed border-soft-border-gray px-4 py-8 text-center text-secondary-neutral-gray">
-                      Phiếu tạm chưa có sản phẩm. Tìm và thêm sản phẩm để tiếp tục.
-                    </div>
-                  ) : null}
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-5">
-                {order.items.map((item) => (
-                  <div
-                    key={item.sku || item.name}
-                    className="flex gap-4 rounded-xl bg-surface-container-low p-4"
-                  >
-                    <div className="grid h-14 w-14 shrink-0 place-items-center rounded-lg bg-white text-action-blue" />
-                    <div className="flex-1">
-                      <h3 className="font-semibold">{item.name}</h3>
-                      <p className="mt-1 text-sm text-secondary-neutral-gray">{item.detail}</p>
-                      <p className="mt-2 font-mono text-xs text-on-surface-variant">
-                        SKU: {item.sku}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm text-secondary-neutral-gray">SL: {item.qty}</p>
-                      {item.unitPrice !== item.originalUnitPrice ? (
-                        <p className="mt-2 text-sm text-secondary-neutral-gray line-through">
-                          {formatDisplayCurrency(item.originalUnitPrice)}
-                        </p>
-                      ) : null}
-                      <p className="mt-2 font-semibold">{item.price}</p>
-                    </div>
+                    ))}
                   </div>
-                ))}
+                )}
+              </Card>
+              <div className="space-y-6">
+                <Card className="p-6">
+                  <h2 className="mb-4 font-semibold">Khách hàng</h2>
+                  <p className="font-semibold">{activeOrder.customer.name}</p>
+                  <Info icon={<Mail size={18} />} label="Thư điện tử" value={activeOrder.customer.email ?? "Chưa có email"} />
+                  <Info icon={<Phone size={18} />} label="Số điện thoại" value={activeOrder.customer.phone} />
+                </Card>
+                <Card className="p-6">
+                  <h2 className="mb-4 font-semibold">Tóm tắt thanh toán</h2>
+                  <Summary
+                    label={`Tạm tính (${isEditingDraft ? draftItems.length : activeOrder.items.length} sản phẩm)`}
+                    value={isEditingDraft ? formatDisplayCurrency(editingSubtotal) : activeOrder.subtotal}
+                  />
+                  {activeOrder.extraCharges.map((charge) => (
+                    <Summary key={charge.name} label={charge.name} value={charge.amountLabel} />
+                  ))}
+                  <div className="my-4 border-t border-soft-border-gray" />
+                  <Summary
+                    label="Tổng cộng"
+                    value={
+                      isEditingDraft
+                        ? formatDisplayCurrency(
+                          editingSubtotal + activeOrder.shippingFeeValue + activeOrder.taxValue + activeOrder.extraChargeTotal,
+                        )
+                        : activeOrder.total
+                    }
+                    strong
+                  />
+                </Card>
               </div>
-            )}
-          </Card>
-          <div className="space-y-6">
-            <Card className="p-6">
-              <h2 className="mb-4 font-semibold">Khách hàng</h2>
-              <p className="font-semibold">{order.customer.name}</p>
-              <Info icon={<Mail size={18} />} label="Thư điện tử" value={order.customer.email ?? "Chưa có email"} />
-              <Info icon={<Phone size={18} />} label="Số điện thoại" value={order.customer.phone} />
-              <Info icon={<TruckIcon />} label="Loại giao" value={order.shippingMethod} />
-            </Card>
-            <Card className="p-6">
-              <h2 className="mb-4 font-semibold">Tóm tắt thanh toán</h2>
-              <Summary
-                label={`Tạm tính (${isEditingDraft ? draftItems.length : order.items.length} sản phẩm)`}
-                value={isEditingDraft ? formatDisplayCurrency(editingSubtotal) : order.subtotal}
-              />
-              {order.extraCharges.map((charge) => (
-                <Summary key={charge.name} label={charge.name} value={charge.amountLabel} />
-              ))}
-              <div className="my-4 border-t border-soft-border-gray" />
-              <Summary
-                label="Tổng cộng"
-                value={
-                  isEditingDraft
-                    ? formatDisplayCurrency(
-                        editingSubtotal + order.shippingFeeValue + order.taxValue + order.extraChargeTotal,
-                      )
-                    : order.total
-                }
-                strong
-              />
-            </Card>
-          </div>
-        </div>
+            </div>
+          </>
+        ) : (
+          <Card className="p-6 text-secondary-neutral-gray">Đang tải đơn hàng...</Card>
+        )}
       </div>
     </>
   );
@@ -618,7 +699,7 @@ export function PrintableReceipt({ order }: { order: OrderDetail }) {
             {item.detail ? <p>{item.detail}</p> : null}
             <div className="receipt-row">
               <span className="inline-flex items-center gap-2">
-                {item.unitPrice !== item.originalUnitPrice ? (
+                {item.unitPrice < item.originalUnitPrice ? (
                   <span className="line-through opacity-60">
                     {formatReceiptMoney(item.originalUnitPrice)}
                   </span>

@@ -9,6 +9,7 @@ import {
   ReceiptText,
   Settings,
   ShoppingCart,
+  Truck,
   Users,
 } from "lucide-react";
 import type { ReactNode } from "react";
@@ -17,6 +18,7 @@ const navItems = [
   { href: "/dashboard", label: "Thống kê", icon: ChartNoAxesColumnIncreasing, key: "dashboard" },
   { href: "/orders/new", label: "Tạo đơn", icon: ShoppingCart, key: "create" },
   { href: "/orders", label: "Đơn hàng", icon: ReceiptText, key: "orders" },
+  { href: "/trips", label: "Chuyến", icon: Truck, key: "trips" },
   { href: "/customers", label: "Khách hàng", icon: Users, key: "customers" },
   { href: "/products", label: "Sản phẩm", icon: Package, key: "products" },
   { href: "/settings", label: "Cài đặt", icon: Settings, key: "settings" },

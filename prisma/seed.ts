@@ -77,12 +77,20 @@ const statuses = [
   OrderStatus.CANCELLED,
 ];
 
+function buildTripName(date: Date) {
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const year = String(date.getFullYear()).slice(-2);
+  return `Chuyến ${day}/${month}/${year}`;
+}
+
 async function main() {
   await prisma.user.deleteMany();
   await prisma.orderExtraCharge.deleteMany();
   await prisma.extraCharge.deleteMany();
   await prisma.orderItem.deleteMany();
   await prisma.order.deleteMany();
+  await prisma.trip.deleteMany();
   await prisma.product.deleteMany();
   await prisma.customer.deleteMany();
   await prisma.storeSetting.deleteMany();
@@ -131,6 +139,15 @@ async function main() {
     );
   }
 
+  const tripDate = new Date(2026, 3, 24, 8, 0, 0, 0);
+  const trip = await prisma.trip.create({
+    data: {
+      name: buildTripName(tripDate),
+      createdAt: tripDate,
+      updatedAt: tripDate,
+    },
+  });
+
   for (let index = 0; index < 24; index += 1) {
     const customer = customers[index % customers.length];
     const firstProduct = products[index % products.length];
@@ -154,6 +171,7 @@ async function main() {
       data: {
         code: buildOrderCode(createdAt, index + 1),
         customerId: customer.id,
+        tripId: trip.id,
         status: statuses[index % statuses.length],
         subtotal,
         shippingFee,

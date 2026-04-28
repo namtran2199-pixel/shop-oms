@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   CheckSquare,
+  ChevronDown,
   CreditCard,
   LoaderCircle,
   Minus,
@@ -60,6 +61,11 @@ type ExtraCharge = {
   id: string;
   name: string;
   amount: number;
+};
+
+type TripOption = {
+  id: string;
+  name: string;
 };
 
 type QuickCreateProductForm = {
@@ -158,6 +164,8 @@ export function CreateOrderClient({
   const [draftItems, setDraftItems] = useState<DraftLine[]>([]);
   const [tempOrders, setTempOrders] = useState<TempOrder[]>([]);
   const [extraCharges, setExtraCharges] = useState<ExtraCharge[]>([]);
+  const [trips, setTrips] = useState<TripOption[]>([]);
+  const [selectedTripId, setSelectedTripId] = useState("");
   const [selectedExtraCharges, setSelectedExtraCharges] = useState<string[]>([]);
   const [selectedTempOrders, setSelectedTempOrders] = useState<string[]>([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
@@ -194,16 +202,20 @@ export function CreateOrderClient({
 
   useEffect(() => {
     async function loadInitialData() {
-      const [productsResponse, settingsResponse] = await Promise.all([
+      const [productsResponse, settingsResponse, tripsResponse] = await Promise.all([
         fetch("/api/products?pageSize=all"),
         fetch("/api/settings"),
+        fetch("/api/trips?page=1&pageSize=20"),
       ]);
       const productsPayload = (await productsResponse.json()) as { data: ProductOption[] };
       const settingsPayload = (await settingsResponse.json()) as {
         data: { extraCharges?: ExtraCharge[] } | null;
       };
+      const tripsPayload = (await tripsResponse.json()) as { data: TripOption[] };
       setProducts(productsPayload.data);
       setExtraCharges(settingsPayload.data?.extraCharges ?? []);
+      setTrips(tripsPayload.data);
+      setSelectedTripId(tripsPayload.data[0]?.id ?? "");
       setIsLoadingProducts(false);
     }
 
@@ -250,13 +262,25 @@ export function CreateOrderClient({
     };
   }, [customerSearchKeyword, showCustomerSuggestions]);
 
+  const normalizedCustomerName = customerName.trim();
+  const tempOrderSearchValue = phoneIsValid ? normalizedPhone : normalizedCustomerName;
+  const canLoadTempOrders = phoneIsValid || normalizedCustomerName.length >= 2;
+
   useEffect(() => {
-    if (!phoneIsValid) return;
+    if (!canLoadTempOrders) {
+      const timer = window.setTimeout(() => {
+        setTempOrders([]);
+        setSelectedTempOrders([]);
+      }, 0);
+
+      return () => window.clearTimeout(timer);
+    }
+
     let active = true;
 
     async function load() {
       setIsLoadingTempOrders(true);
-      const data = await fetchTempOrders(normalizedPhone);
+      const data = await fetchTempOrders(tempOrderSearchValue);
       if (!active) return;
       setTempOrders(data);
       setSelectedTempOrders((current) =>
@@ -272,7 +296,7 @@ export function CreateOrderClient({
     return () => {
       active = false;
     };
-  }, [normalizedPhone, phoneIsValid]);
+  }, [canLoadTempOrders, phoneIsValid, tempOrderSearchValue]);
 
   useEffect(() => {
     if (!printableOrder) return;
@@ -284,9 +308,9 @@ export function CreateOrderClient({
     return () => window.clearTimeout(timer);
   }, [printableOrder]);
 
-  async function fetchTempOrders(phoneValue: string) {
+  async function fetchTempOrders(searchValue: string) {
     const params = new URLSearchParams({
-      search: phoneValue,
+      search: searchValue,
       status: "Phiếu tạm",
       page: "1",
       pageSize: "20",
@@ -390,6 +414,11 @@ export function CreateOrderClient({
       return false;
     }
 
+    if (!selectedTripId) {
+      setSubmitError("Chưa có chuyến. Vui lòng tạo chuyến mới trước khi lưu đơn.");
+      return false;
+    }
+
     return true;
   }
 
@@ -466,6 +495,7 @@ export function CreateOrderClient({
       body: JSON.stringify({
         customerName: customerName.trim(),
         phone: normalizedPhone,
+        tripId: selectedTripId,
         shippingAddress: customerAddress.trim(),
         shippingMethod,
         temporary: true,
@@ -499,6 +529,7 @@ export function CreateOrderClient({
       body: JSON.stringify({
         customerName: customerName.trim(),
         phone: normalizedPhone,
+        tripId: selectedTripId,
         shippingAddress: customerAddress.trim(),
         shippingMethod,
         status: "Đã thanh toán",
@@ -529,7 +560,7 @@ export function CreateOrderClient({
     }
 
     setPrintableOrder(detailPayload.data);
-    resetDraft();
+    resetCreateOrderState();
     setIsPaying(false);
   }
 
@@ -624,9 +655,47 @@ export function CreateOrderClient({
                   onChange={setShippingMethod}
                 />
               </div>
+              <div className="md:col-span-2">
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                  <label className="flex flex-col gap-3 lg:flex-row lg:items-center">
+                    <span className="min-w-24 text-base font-medium text-on-surface-variant">
+                      Chuyến:
+                    </span>
+                    <span className="relative block">
+                      <select
+                        className="focus-ring h-12 min-w-[260px] appearance-none rounded-full border-[4px] border-[#c8dcfb] bg-white pl-7 pr-12 text-[15px] font-medium text-near-black-ink shadow-[0_1px_0_rgba(15,23,42,0.03)]"
+                        value={selectedTripId}
+                        onChange={(event) => setSelectedTripId(event.target.value)}
+                      >
+                        <option value="">Chọn chuyến</option>
+                        {trips.map((trip) => (
+                          <option key={trip.id} value={trip.id}>
+                            {trip.name}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown
+                        size={18}
+                        className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-secondary-neutral-gray"
+                      />
+                    </span>
+                  </label>
+                  <Button className="shrink-0" variant="secondary" onClick={() => router.push("/trips")}>
+                    Quản lý chuyến
+                  </Button>
+                </div>
+                <p className="mt-2 text-sm text-secondary-neutral-gray">
+                  Đơn mới sẽ mặc định gắn vào chuyến đang chọn.
+                </p>
+              </div>
             </div>
 
             <div className="mt-4 space-y-2">
+              {!selectedTripId && !isLoadingProducts ? (
+                <div className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-warning">
+                  Chưa có chuyến đang hoạt động. Hãy tạo chuyến mới trước khi lưu hoặc thanh toán đơn.
+                </div>
+              ) : null}
               {phoneTouched && phone.length > 0 && !phoneIsValid ? (
                 <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-error">
                   Số điện thoại chưa hợp lệ. Chỉ chấp nhận số di động Việt Nam gồm 10 chữ số.
@@ -1060,9 +1129,9 @@ export function CreateOrderClient({
               </div>
             ) : (
               <div className="rounded-xl border border-dashed border-soft-border-gray bg-surface-container-low px-4 py-6 text-sm text-secondary-neutral-gray md:px-5 md:py-8">
-                {phoneIsValid
+                {canLoadTempOrders
                   ? "Khách này chưa có phiếu tạm nào."
-                  : "Nhập số điện thoại để xem các phiếu tạm đang mở."}
+                  : "Nhập số điện thoại hoặc tên khách để xem các phiếu tạm đang mở."}
               </div>
             )}
           </Card>

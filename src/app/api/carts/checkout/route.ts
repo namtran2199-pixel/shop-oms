@@ -6,6 +6,7 @@ import {
 } from "@/lib/customer-phone-db";
 import { getPrisma } from "@/lib/prisma";
 import { getNextOrderCode } from "@/lib/order-code";
+import { resolveTripId } from "@/lib/trips";
 
 function normalizePhone(value: string) {
   const digits = value.replace(/\D/g, "");
@@ -41,6 +42,14 @@ export async function POST(request: Request) {
     quantity: Math.max(1, Math.round(item.quantity)),
   }));
   const prisma = getPrisma();
+  const tripId = await resolveTripId(prisma);
+  if (!tripId) {
+    return NextResponse.json(
+      { error: "Chưa có chuyến. Vui lòng tạo chuyến mới trước khi tạo đơn." },
+      { status: 400 },
+    );
+  }
+
   const products = await prisma.product.findMany({
     where: { id: { in: requestedItems.map((item) => item.productId) } },
   });
@@ -101,6 +110,7 @@ export async function POST(request: Request) {
           data: {
             code,
             customerId: customer.id,
+            tripId,
             status: OrderStatus.PROCESSING,
             subtotal,
             total: subtotal,

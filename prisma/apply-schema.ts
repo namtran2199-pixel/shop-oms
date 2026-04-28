@@ -8,6 +8,7 @@ const statements = [
   `DROP TABLE IF EXISTS "ExtraCharge" CASCADE`,
   `DROP TABLE IF EXISTS "OrderItem" CASCADE`,
   `DROP TABLE IF EXISTS "Order" CASCADE`,
+  `DROP TABLE IF EXISTS "Trip" CASCADE`,
   `DROP TABLE IF EXISTS "Product" CASCADE`,
   `DROP TABLE IF EXISTS "Customer" CASCADE`,
   `DROP TABLE IF EXISTS "StoreSetting" CASCADE`,
@@ -43,10 +44,17 @@ const statements = [
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL
   )`,
+  `CREATE TABLE "Trip" (
+    "id" TEXT PRIMARY KEY NOT NULL,
+    "name" TEXT NOT NULL UNIQUE,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL
+  )`,
   `CREATE TABLE "Order" (
     "id" TEXT PRIMARY KEY NOT NULL,
     "code" TEXT NOT NULL UNIQUE,
     "customerId" TEXT NOT NULL,
+    "tripId" TEXT,
     "status" "OrderStatus" NOT NULL DEFAULT 'PROCESSING',
     "mergedIntoId" TEXT,
     "subtotal" INTEGER NOT NULL,
@@ -62,6 +70,9 @@ const statements = [
     CONSTRAINT "Order_customerId_fkey"
       FOREIGN KEY ("customerId") REFERENCES "Customer"("id")
       ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT "Order_tripId_fkey"
+      FOREIGN KEY ("tripId") REFERENCES "Trip"("id")
+      ON DELETE SET NULL ON UPDATE CASCADE,
     CONSTRAINT "Order_mergedIntoId_fkey"
       FOREIGN KEY ("mergedIntoId") REFERENCES "Order"("id")
       ON DELETE SET NULL ON UPDATE CASCADE
