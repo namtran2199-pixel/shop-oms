@@ -220,13 +220,21 @@ export function CreateOrderClient({ initialPhone = "" }: { initialPhone?: string
     };
   }, [customerSearchKeyword, showCustomerSuggestions]);
 
+  const normalizedCustomerName = customerName.trim();
+  const tempOrderSearchValue = phoneIsValid ? normalizedPhone : normalizedCustomerName;
+  const canLoadTempOrders = phoneIsValid || normalizedCustomerName.length >= 2;
+
   useEffect(() => {
-    if (!phoneIsValid) return;
+    if (!canLoadTempOrders) {
+      setTempOrders([]);
+      setSelectedTempOrders([]);
+      return;
+    }
     let active = true;
 
     async function load() {
       setIsLoadingTempOrders(true);
-      const data = await fetchTempOrders(normalizedPhone);
+      const data = await fetchTempOrders(tempOrderSearchValue);
       if (!active) return;
       setTempOrders(data);
       setSelectedTempOrders((current) =>
@@ -242,7 +250,7 @@ export function CreateOrderClient({ initialPhone = "" }: { initialPhone?: string
     return () => {
       active = false;
     };
-  }, [normalizedPhone, phoneIsValid]);
+  }, [canLoadTempOrders, phoneIsValid, tempOrderSearchValue]);
 
   useEffect(() => {
     if (!printableOrder) return;
@@ -250,9 +258,9 @@ export function CreateOrderClient({ initialPhone = "" }: { initialPhone?: string
     return () => window.clearTimeout(timer);
   }, [printableOrder]);
 
-  async function fetchTempOrders(phoneValue: string) {
+  async function fetchTempOrders(searchValue: string) {
     const params = new URLSearchParams({
-      search: phoneValue,
+      search: searchValue,
       status: "Phiếu tạm",
       page: "1",
       pageSize: "20",
@@ -1011,9 +1019,9 @@ export function CreateOrderClient({ initialPhone = "" }: { initialPhone?: string
               </div>
             ) : (
               <div className="rounded-xl border border-dashed border-soft-border-gray bg-surface-container-low px-4 py-6 text-sm text-secondary-neutral-gray md:px-5 md:py-8">
-                {phoneIsValid
+                {canLoadTempOrders
                   ? "Khách này chưa có phiếu tạm nào."
-                  : "Nhập số điện thoại để xem các phiếu tạm đang mở."}
+                  : "Nhập số điện thoại hoặc tên khách để xem các phiếu tạm đang mở."}
               </div>
             )}
           </Card>

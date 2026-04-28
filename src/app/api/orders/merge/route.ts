@@ -22,6 +22,16 @@ function getInitialSearchText(value: string) {
     .join("");
 }
 
+function getMergeGroupKey(customer: { name: string; phone: string | null }, customerId: string) {
+  const phone = normalizePhone(customer.phone ?? "");
+  if (phone) return `phone:${phone}`;
+
+  const normalizedName = normalizeText(customer.name);
+  if (normalizedName) return `name:${normalizedName}`;
+
+  return `customer:${customerId}`;
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const search = searchParams.get("search")?.trim() ?? "";
@@ -46,15 +56,13 @@ export async function GET(request: Request) {
 
   const groupedCounts = new Map<string, number>();
   rows.forEach((order) => {
-    const phone = normalizePhone(order.customer.phone ?? "");
-    const groupKey = phone ? `phone:${phone}` : `customer:${order.customerId}`;
+    const groupKey = getMergeGroupKey(order.customer, order.customerId);
     groupedCounts.set(groupKey, (groupedCounts.get(groupKey) ?? 0) + 1);
   });
 
   const candidates = rows
     .map((order) => {
-      const phone = normalizePhone(order.customer.phone ?? "");
-      const groupKey = phone ? `phone:${phone}` : `customer:${order.customerId}`;
+      const groupKey = getMergeGroupKey(order.customer, order.customerId);
       return {
         code: order.code,
         customer: order.customer.name,
@@ -130,13 +138,14 @@ export async function POST(request: Request) {
   }
 
   const customerPhone = normalizePhone(tempOrders[0].customer.phone ?? "");
+  const customerName = normalizeText(tempOrders[0].customer.name);
   const hasSameCustomer = customerPhone
     ? tempOrders.every((order) => normalizePhone(order.customer.phone ?? "") === customerPhone)
-    : tempOrders.every((order) => order.customerId === tempOrders[0].customerId);
+    : tempOrders.every((order) => normalizeText(order.customer.name) === customerName);
 
   if (!hasSameCustomer) {
     return NextResponse.json(
-      { error: "Chỉ có thể gộp các phiếu tạm cùng số điện thoại khách hàng." },
+      { error: "Chỉ có thể gộp các phiếu tạm cùng số điện thoại hoặc cùng tên khách hàng." },
       { status: 400 },
     );
   }
