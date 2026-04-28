@@ -631,7 +631,7 @@ export function PrintableReceipt({ order }: { order: OrderDetail }) {
       <div className="receipt-line" />
       <div className="receipt-row receipt-head">
         <span>Đơn giá</span>
-        <span>Số lượng</span>
+        <span>SL</span>
         <span>Thành tiền</span>
       </div>
       <div className="receipt-line" />
