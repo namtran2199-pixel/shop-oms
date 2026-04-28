@@ -477,7 +477,7 @@ export function OrderDetailClient({ code }: { code: string }) {
                     </div>
                     <div className="text-right">
                       <p className="text-sm text-secondary-neutral-gray">SL: {item.qty}</p>
-                      {item.unitPrice !== item.originalUnitPrice ? (
+                      {item.unitPrice < item.originalUnitPrice ? (
                         <p className="mt-2 text-sm text-secondary-neutral-gray line-through">
                           {formatDisplayCurrency(item.originalUnitPrice)}
                         </p>
@@ -560,7 +560,7 @@ export function PrintableReceipt({ order }: { order: OrderDetail }) {
             {item.detail ? <p>{item.detail}</p> : null}
             <div className="receipt-row">
               <span className="inline-flex items-center gap-2">
-                {item.unitPrice !== item.originalUnitPrice ? (
+                {item.unitPrice < item.originalUnitPrice ? (
                   <span className="line-through opacity-60">
                     {formatReceiptMoney(item.originalUnitPrice)}
                   </span>

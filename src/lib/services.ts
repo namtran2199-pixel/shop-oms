@@ -1,4 +1,5 @@
 import { unstable_noStore as noStore } from "next/cache";
+import { OrderStatus } from "@prisma/client";
 import {
   Headphones,
   Package,
@@ -217,12 +218,15 @@ export async function getStoreSettings() {
 export async function getStats() {
   noStore();
   const prisma = getPrisma();
-  const orderCount = await prisma.order.count();
+  const revenueStatuses: OrderStatus[] = [OrderStatus.PAID, OrderStatus.PROCESSING];
+  const orderCount = await prisma.order.count({
+    where: { status: { in: revenueStatuses } },
+  });
   const productCount = await prisma.product.count();
   const customerCount = await prisma.customer.count();
   const paidRevenue = await prisma.order.aggregate({
-    where: { status: { not: "CANCELLED" } },
-    _sum: { total: true },
+    where: { status: { in: revenueStatuses } },
+    _sum: { subtotal: true },
   });
   const recentOrders = await prisma.order.findMany({
     take: 5,
@@ -239,14 +243,14 @@ export async function getStats() {
     where: { status: "CANCELLED" },
   });
   const completedCount = await prisma.order.count({
-    where: { status: { not: "CANCELLED" } },
+    where: { status: { in: revenueStatuses } },
   });
   const averageOrderValue =
-    completedCount > 0 ? Math.round((paidRevenue._sum.total ?? 0) / completedCount) : 0;
+    completedCount > 0 ? Math.round((paidRevenue._sum.subtotal ?? 0) / completedCount) : 0;
 
   return {
     cards: [
-      { label: "Doanh thu", value: formatCurrency(paidRevenue._sum.total ?? 0) },
+      { label: "Doanh thu", value: formatCurrency(paidRevenue._sum.subtotal ?? 0) },
       { label: "Đơn hàng", value: String(orderCount) },
       { label: "Khách hàng", value: String(customerCount) },
       { label: "Sản phẩm", value: String(productCount) },
