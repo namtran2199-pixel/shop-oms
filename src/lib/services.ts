@@ -91,6 +91,7 @@ export async function getOrderDetail(code: string) {
       name: storeSettings?.shopName ?? "Shop Retail",
       phone: storeSettings?.phone ?? "",
       qrCodeImageUrl: storeSettings?.qrCodeImageUrl ?? null,
+      paperSize: storeSettings?.paperSize ?? "A5",
     },
     customer: {
       ...order.customer,

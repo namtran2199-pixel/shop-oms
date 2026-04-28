@@ -5,7 +5,11 @@ import { useRouter } from "next/navigation";
 import { CheckSquare, ChevronDown, LoaderCircle, Printer, Search, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Button, Card, StatusBadge, TableCard } from "@/components/ui";
-import { PrintableReceipt, type OrderDetail } from "./[id]/order-detail-client";
+import {
+  PrintableReceipt,
+  type OrderDetail,
+  waitForPrintableReceiptAssets,
+} from "./[id]/order-detail-client";
 
 type OrderRow = {
   id: string;
@@ -301,8 +305,10 @@ export function OrdersClient() {
     if (printableOrders.length === 0) return;
 
     const timer = window.setTimeout(() => {
-      window.print();
-      setIsPrinting(false);
+      waitForPrintableReceiptAssets().finally(() => {
+        window.print();
+        setIsPrinting(false);
+      });
     }, 0);
 
     const handleAfterPrint = () => setPrintableOrders([]);

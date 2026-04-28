@@ -15,7 +15,11 @@ import {
   UserPlus,
 } from "lucide-react";
 import { Button, Card, StatusBadge } from "@/components/ui";
-import { PrintableReceipt, type OrderDetail } from "../[id]/order-detail-client";
+import {
+  PrintableReceipt,
+  type OrderDetail,
+  waitForPrintableReceiptAssets,
+} from "../[id]/order-detail-client";
 
 type ProductOption = {
   id: string;
@@ -272,7 +276,11 @@ export function CreateOrderClient({
 
   useEffect(() => {
     if (!printableOrder) return;
-    const timer = window.setTimeout(() => window.print(), 0);
+    const timer = window.setTimeout(() => {
+      waitForPrintableReceiptAssets().finally(() => {
+        window.print();
+      });
+    }, 0);
     return () => window.clearTimeout(timer);
   }, [printableOrder]);
 

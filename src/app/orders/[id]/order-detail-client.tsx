@@ -9,7 +9,7 @@ export type OrderDetail = {
   createdAtIso: string;
   createdAtLabel: string;
   receiptLongDateLabel: string;
-  store: { name: string; phone: string; qrCodeImageUrl: string | null };
+  store: { name: string; phone: string; qrCodeImageUrl: string | null; paperSize: string };
   customer: { name: string; email: string | null; phone: string; address?: string | null };
   subtotal: string;
   subtotalValue: number;
@@ -64,6 +64,35 @@ declare global {
       printReceipt?: (payload: string) => boolean;
     };
   }
+}
+
+export async function waitForPrintableReceiptAssets() {
+  const images = Array.from(document.querySelectorAll<HTMLImageElement>(".print-receipt img"));
+
+  await Promise.all(
+    images.map(async (image) => {
+      if (!image.currentSrc && !image.src) return;
+
+      if (image.complete && image.naturalWidth > 0) {
+        if (typeof image.decode === "function") {
+          try {
+            await image.decode();
+          } catch {
+            return;
+          }
+        }
+        return;
+      }
+
+      await new Promise<void>((resolve) => {
+        const finalize = () => resolve();
+        image.addEventListener("load", finalize, { once: true });
+        image.addEventListener("error", finalize, { once: true });
+      });
+    }),
+  );
+
+  await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 }
 
 export function OrderDetailClient({ code }: { code: string }) {
@@ -258,7 +287,9 @@ export function OrderDetailClient({ code }: { code: string }) {
       if (didDispatch) return;
     }
 
-    window.print();
+    waitForPrintableReceiptAssets().finally(() => {
+      window.print();
+    });
   }
 
   if (!order) {
@@ -529,7 +560,11 @@ export function OrderDetailClient({ code }: { code: string }) {
 
 export function PrintableReceipt({ order }: { order: OrderDetail }) {
   return (
-    <section className="print-receipt" aria-hidden="true">
+    <section
+      className="print-receipt"
+      data-paper-size={order.store.paperSize || "A5"}
+      aria-hidden="true"
+    >
       <h1>{order.store.name}</h1>
       <p className="receipt-date">{order.receiptLongDateLabel}</p>
 
@@ -542,6 +577,7 @@ export function PrintableReceipt({ order }: { order: OrderDetail }) {
             src={order.store.qrCodeImageUrl}
             alt="QR chuyển khoản"
             loading="eager"
+            decoding="sync"
           />
         ) : (
           <div className="receipt-qr-placeholder">{order.code}</div>

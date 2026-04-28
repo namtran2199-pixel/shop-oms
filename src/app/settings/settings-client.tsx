@@ -289,7 +289,7 @@ export function SettingsClient() {
           Chọn A5 cho máy in nhiệt tiêu chuẩn.
         </p>
         <div className="mt-6 grid gap-3 md:grid-cols-3">
-          {["A5", "A4", "K80"].map((paperSize) => (
+          {["A7", "A5", "A4", "K80"].map((paperSize) => (
             <label
               key={paperSize}
               className={`rounded-xl border px-4 py-4 text-sm font-medium ${
@@ -305,7 +305,11 @@ export function SettingsClient() {
                 checked={settings.paperSize === paperSize}
                 onChange={() => setSettings((current) => ({ ...current, paperSize }))}
               />
-              {paperSize === "K80" ? "Khổ K80 (máy in bill)" : `Khổ ${paperSize}`}
+              {paperSize === "K80"
+                ? "Khổ K80 (máy in bill)"
+                : paperSize === "A7"
+                  ? "Khổ A7 (phiếu nhỏ)"
+                  : `Khổ ${paperSize}`}
             </label>
           ))}
         </div>
