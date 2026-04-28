@@ -44,13 +44,6 @@ export async function GET(request: Request) {
     orderBy: { createdAt: "desc" },
   });
 
-  const groupedCounts = new Map<string, number>();
-  rows.forEach((order) => {
-    const phone = normalizePhone(order.customer.phone ?? "");
-    const groupKey = phone ? `phone:${phone}` : `customer:${order.customerId}`;
-    groupedCounts.set(groupKey, (groupedCounts.get(groupKey) ?? 0) + 1);
-  });
-
   const candidates = rows
     .map((order) => {
       const phone = normalizePhone(order.customer.phone ?? "");
@@ -68,7 +61,6 @@ export async function GET(request: Request) {
         groupKey,
       };
     })
-    .filter((order) => (groupedCounts.get(order.groupKey) ?? 0) > 1)
     .filter((order) => {
       if (!search) return true;
 
