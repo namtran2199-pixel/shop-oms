@@ -50,7 +50,7 @@ export function OrdersClient() {
   const [meta, setMeta] = useState({
     total: 0,
     page: 1,
-    pageSize: 5,
+    pageSize: 10,
     totalPages: 1,
   });
   const [isLoading, setIsLoading] = useState(true);
@@ -96,7 +96,7 @@ export function OrdersClient() {
     if (search) params.set("search", search);
     if (status !== "Tất cả") params.set("status", status);
     params.set("page", String(page));
-    params.set("pageSize", "5");
+    params.set("pageSize", "20");
     return params.toString();
   }, [page, search, status]);
 
@@ -382,139 +382,137 @@ export function OrdersClient() {
           onNext={() => setPage((current) => Math.min(meta.totalPages, current + 1))}
           onPageChange={setPage}
         >
-        <table className="w-full min-w-[960px] text-left">
-          <thead className="bg-surface-container-low text-xs uppercase tracking-wide text-secondary-neutral-gray">
-            <tr>
-              <th className="w-16 p-0 font-medium">
-                <button
-                  className={`grid min-h-12 w-full place-items-center transition hover:bg-surface-container ${
-                    printableOrderIds.length > 0
+          <table className="w-full min-w-[960px] text-left">
+            <thead className="bg-surface-container-low text-xs uppercase tracking-wide text-secondary-neutral-gray">
+              <tr>
+                <th className="w-16 p-0 font-medium">
+                  <button
+                    className={`grid min-h-12 w-full place-items-center transition hover:bg-surface-container ${printableOrderIds.length > 0
                       ? "text-action-blue"
                       : "cursor-not-allowed text-secondary-neutral-gray opacity-50"
-                  }`}
-                  onClick={toggleSelectAllPrintable}
-                  aria-label="Chọn tất cả đơn có thể in trên trang"
-                  disabled={printableOrderIds.length === 0}
-                >
-                  <span className="grid h-5 w-5 place-items-center rounded border border-mid-border-gray bg-white">
-                    {hasSelectedAllPrintable ? <CheckSquare size={16} /> : null}
-                  </span>
-                </button>
-              </th>
-              <th className="px-6 py-4 font-medium">Mã đơn</th>
-              <th className="px-6 py-4 font-medium">Khách hàng</th>
-              <th className="px-6 py-4 font-medium">Số điện thoại</th>
-              <th className="px-6 py-4 font-medium">Tổng tiền</th>
-              <th className="px-6 py-4 font-medium">Trạng thái</th>
-              <th className="px-6 py-4 font-medium">Thời gian</th>
-              <th className="px-6 py-4 font-medium">Thao tác</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-soft-border-gray">
-            {isLoading ? (
-              <tr>
-                <td className="px-6 py-8 text-secondary-neutral-gray" colSpan={8}>
-                  Đang tải đơn hàng...
-                </td>
-              </tr>
-            ) : null}
-            {orders.map((order) => {
-              const canPrint = canPrintOrder(order);
-              const isSelected = selectedOrderIds.includes(order.id);
-
-              return (
-                <tr key={order.id} className="group bg-white transition hover:bg-surface-container-low">
-                  <td className="p-0">
-                    <button
-                      className={`grid h-full min-h-[88px] w-full place-items-center transition hover:bg-surface-container ${
-                        canPrint
-                          ? "text-action-blue"
-                          : "cursor-not-allowed text-secondary-neutral-gray opacity-50"
                       }`}
-                      aria-label={
-                        canPrint ? `Chọn đơn ${order.id}` : `Đơn ${order.id} chưa thể in`
-                      }
-                      onClick={() => {
-                        if (!canPrint) return;
-                        toggleSelectedOrder(order.id);
-                      }}
-                      disabled={!canPrint}
-                      title={canPrint ? "Chọn đơn để in" : "Phiếu tạm hoặc đơn đã gộp chưa thể in"}
-                    >
-                      <span className="grid h-5 w-5 place-items-center rounded border border-mid-border-gray bg-white">
-                        {isSelected ? <CheckSquare size={16} /> : null}
-                      </span>
-                    </button>
-                  </td>
-                  <td
-                    className="cursor-pointer px-6 py-5 font-mono text-sm text-near-black-ink"
-                    onClick={() => router.push(`/orders/${order.id}`)}
+                    onClick={toggleSelectAllPrintable}
+                    aria-label="Chọn tất cả đơn có thể in trên trang"
+                    disabled={printableOrderIds.length === 0}
                   >
-                    {order.id}
-                  </td>
-                  <td
-                    className="cursor-pointer px-6 py-5"
-                    onClick={() => router.push(`/orders/${order.id}`)}
-                  >
-                    <p className="font-medium">{order.customer}</p>
-                    {order.items ? (
-                      <p className="mt-1 max-w-64 truncate text-sm text-secondary-neutral-gray">
-                        {order.items}
-                      </p>
-                    ) : null}
-                  </td>
-                  <td
-                    className="cursor-pointer px-6 py-5 text-secondary-neutral-gray"
-                    onClick={() => router.push(`/orders/${order.id}`)}
-                  >
-                    {order.phone}
-                  </td>
-                  <td
-                    className="cursor-pointer px-6 py-5 font-semibold"
-                    onClick={() => router.push(`/orders/${order.id}`)}
-                  >
-                    {order.total}
-                  </td>
-                  <td className="cursor-pointer px-6 py-5" onClick={() => router.push(`/orders/${order.id}`)}>
-                    <StatusBadge status={order.status} />
-                  </td>
-                  <td
-                    className="cursor-pointer px-6 py-5 text-secondary-neutral-gray"
-                    onClick={() => router.push(`/orders/${order.id}`)}
-                  >
-                    {order.time}
-                  </td>
-                  <td className="px-6 py-5">
-                    <div className="flex gap-3 text-secondary-neutral-gray">
-                      {canPrint ? (
-                        <button
-                          className="hover:text-action-blue"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            printSingleOrder(order.id);
-                          }}
-                          aria-label={`In đơn ${order.id}`}
-                        >
-                          <Printer size={18} />
-                        </button>
-                      ) : null}
-                      <button
-                        className="hover:text-error"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          void deleteOrder(order.id);
-                        }}
-                        aria-label={`Xóa đơn ${order.id}`}
-                      >
-                        <Trash2 size={18} />
-                      </button>
-                    </div>
+                    <span className="grid h-5 w-5 place-items-center rounded border border-mid-border-gray bg-white">
+                      {hasSelectedAllPrintable ? <CheckSquare size={16} /> : null}
+                    </span>
+                  </button>
+                </th>
+                <th className="px-6 py-4 font-medium">Mã đơn</th>
+                <th className="px-6 py-4 font-medium">Khách hàng</th>
+                <th className="px-6 py-4 font-medium">Số điện thoại</th>
+                <th className="px-6 py-4 font-medium">Tổng tiền</th>
+                <th className="px-6 py-4 font-medium">Trạng thái</th>
+                <th className="px-6 py-4 font-medium">Thời gian</th>
+                <th className="px-6 py-4 font-medium">Thao tác</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-soft-border-gray">
+              {isLoading ? (
+                <tr>
+                  <td className="px-6 py-8 text-secondary-neutral-gray" colSpan={8}>
+                    Đang tải đơn hàng...
                   </td>
                 </tr>
-              );
-            })}
-          </tbody>
-        </table>
+              ) : null}
+              {orders.map((order) => {
+                const canPrint = canPrintOrder(order);
+                const isSelected = selectedOrderIds.includes(order.id);
+
+                return (
+                  <tr key={order.id} className="group bg-white transition hover:bg-surface-container-low">
+                    <td className="p-0">
+                      <button
+                        className={`grid h-full min-h-[88px] w-full place-items-center transition hover:bg-surface-container ${canPrint
+                          ? "text-action-blue"
+                          : "cursor-not-allowed text-secondary-neutral-gray opacity-50"
+                          }`}
+                        aria-label={
+                          canPrint ? `Chọn đơn ${order.id}` : `Đơn ${order.id} chưa thể in`
+                        }
+                        onClick={() => {
+                          if (!canPrint) return;
+                          toggleSelectedOrder(order.id);
+                        }}
+                        disabled={!canPrint}
+                        title={canPrint ? "Chọn đơn để in" : "Phiếu tạm hoặc đơn đã gộp chưa thể in"}
+                      >
+                        <span className="grid h-5 w-5 place-items-center rounded border border-mid-border-gray bg-white">
+                          {isSelected ? <CheckSquare size={16} /> : null}
+                        </span>
+                      </button>
+                    </td>
+                    <td
+                      className="cursor-pointer px-6 py-5 font-mono text-sm text-near-black-ink"
+                      onClick={() => router.push(`/orders/${order.id}`)}
+                    >
+                      {order.id}
+                    </td>
+                    <td
+                      className="cursor-pointer px-6 py-5"
+                      onClick={() => router.push(`/orders/${order.id}`)}
+                    >
+                      <p className="font-medium">{order.customer}</p>
+                      {order.items ? (
+                        <p className="mt-1 max-w-64 truncate text-sm text-secondary-neutral-gray">
+                          {order.items}
+                        </p>
+                      ) : null}
+                    </td>
+                    <td
+                      className="cursor-pointer px-6 py-5 text-secondary-neutral-gray"
+                      onClick={() => router.push(`/orders/${order.id}`)}
+                    >
+                      {order.phone}
+                    </td>
+                    <td
+                      className="cursor-pointer px-6 py-5 font-semibold"
+                      onClick={() => router.push(`/orders/${order.id}`)}
+                    >
+                      {order.total}
+                    </td>
+                    <td className="cursor-pointer px-6 py-5" onClick={() => router.push(`/orders/${order.id}`)}>
+                      <StatusBadge status={order.status} />
+                    </td>
+                    <td
+                      className="cursor-pointer px-6 py-5 text-secondary-neutral-gray"
+                      onClick={() => router.push(`/orders/${order.id}`)}
+                    >
+                      {order.time}
+                    </td>
+                    <td className="px-6 py-5">
+                      <div className="flex gap-3 text-secondary-neutral-gray">
+                        {canPrint ? (
+                          <button
+                            className="hover:text-action-blue"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              printSingleOrder(order.id);
+                            }}
+                            aria-label={`In đơn ${order.id}`}
+                          >
+                            <Printer size={18} />
+                          </button>
+                        ) : null}
+                        <button
+                          className="hover:text-error"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            void deleteOrder(order.id);
+                          }}
+                          aria-label={`Xóa đơn ${order.id}`}
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </TableCard>
       </div>
       {showMergeModal ? (
