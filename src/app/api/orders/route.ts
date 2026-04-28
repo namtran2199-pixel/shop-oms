@@ -52,6 +52,7 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const search = searchParams.get("search")?.trim() ?? "";
   const status = searchParams.get("status") ?? "Tất cả";
+  const shippingMethod = searchParams.get("shippingMethod")?.trim() ?? "Tất cả";
   const page = Math.max(1, Number(searchParams.get("page") ?? "1") || 1);
   const pageSize = Math.min(
     20,
@@ -72,7 +73,9 @@ export async function GET(request: Request) {
       (normalizedPhoneSearch.length > 0 &&
         normalizePhone(order.phone).includes(normalizedPhoneSearch));
     const matchesStatus = status === "Tất cả" || order.status === status;
-    return matchesSearch && matchesStatus;
+    const matchesShippingMethod =
+      shippingMethod === "Tất cả" || order.shippingMethod === shippingMethod;
+    return matchesSearch && matchesStatus && matchesShippingMethod;
   });
 
   const total = filtered.length;
@@ -101,6 +104,7 @@ export async function POST(request: Request) {
     status?: string;
     temporary?: boolean;
     shippingAddress?: string;
+    shippingMethod?: string;
     extraChargeIds?: string[];
     items?: Array<{ productId: string; quantity: number; unitPrice?: number; detail?: string }>;
   };
@@ -129,6 +133,7 @@ export async function POST(request: Request) {
 
   const normalizedPhone = normalizePhone(body.phone ?? "");
   const shippingAddress = body.shippingAddress?.trim() || null;
+  const shippingMethod = body.shippingMethod?.trim() || null;
   if (normalizedPhone && !isValidVietnamPhone(normalizedPhone)) {
     return NextResponse.json(
       { error: "Số điện thoại không hợp lệ" },
@@ -206,6 +211,7 @@ export async function POST(request: Request) {
             status,
             subtotal,
             total: subtotal + extraChargeTotal,
+            shippingMethod,
             shippingAddress,
             paymentMethod:
               status === OrderStatus.DRAFT

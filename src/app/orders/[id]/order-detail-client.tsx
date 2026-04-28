@@ -226,6 +226,7 @@ export function OrderDetailClient({ code }: { code: string }) {
         totalAmount: order.totalValue,
         subtotalAmount: order.subtotalValue,
         shippingFee: order.shippingFeeValue,
+        shippingMethod: order.shippingMethod,
         storeName: order.store.name,
         customerName: order.customer.name,
         customerPhone: order.customer.phone,
@@ -495,6 +496,7 @@ export function OrderDetailClient({ code }: { code: string }) {
               <p className="font-semibold">{order.customer.name}</p>
               <Info icon={<Mail size={18} />} label="Thư điện tử" value={order.customer.email ?? "Chưa có email"} />
               <Info icon={<Phone size={18} />} label="Số điện thoại" value={order.customer.phone} />
+              <Info icon={<TruckIcon />} label="Loại giao" value={order.shippingMethod} />
             </Card>
             <Card className="p-6">
               <h2 className="mb-4 font-semibold">Tóm tắt thanh toán</h2>
@@ -556,6 +558,11 @@ export function PrintableReceipt({ order }: { order: OrderDetail }) {
         {order.shippingAddress !== "Chưa có địa chỉ" ? (
           <p>
             <strong>Địa chỉ:</strong> {order.shippingAddress}
+          </p>
+        ) : null}
+        {order.shippingMethod !== "Chưa chọn" ? (
+          <p>
+            <strong>Loại giao:</strong> {order.shippingMethod}
           </p>
         ) : null}
       </div>
@@ -669,6 +676,28 @@ function Info({ icon, label, value }: { icon: React.ReactNode; label: string; va
         <p className="font-medium">{value}</p>
       </div>
     </div>
+  );
+}
+
+function TruckIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M3 7.5A1.5 1.5 0 0 1 4.5 6h9A1.5 1.5 0 0 1 15 7.5V16h1.586a1 1 0 0 0 .707-.293l1.414-1.414A1 1 0 0 0 19 13.586V11.5a1 1 0 0 0-.293-.707l-1.5-1.5A1 1 0 0 0 16.5 9H15"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M15 12h4"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+      <circle cx="7.5" cy="17.5" r="2.5" stroke="currentColor" strokeWidth="1.8" />
+      <circle cx="17.5" cy="17.5" r="2.5" stroke="currentColor" strokeWidth="1.8" />
+    </svg>
   );
 }
 

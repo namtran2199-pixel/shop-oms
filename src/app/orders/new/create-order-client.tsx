@@ -47,6 +47,7 @@ type TempOrder = {
   phone: string;
   total: string;
   status: string;
+  shippingMethod: string;
   time: string;
   items: string;
 };
@@ -62,6 +63,8 @@ type QuickCreateProductForm = {
   defaultPrice: string;
   note: string;
 };
+
+const SHIPPING_METHOD_OPTIONS = ["Bưu điện", "Nội thành", "Qua lấy"] as const;
 
 function parseCurrency(value: string) {
   return Number(value.replace(/\D/g, ""));
@@ -119,6 +122,7 @@ export function CreateOrderClient({ initialPhone = "" }: { initialPhone?: string
   const [phone, setPhone] = useState(normalizedInitialPhone);
   const [customerName, setCustomerName] = useState("");
   const [customerAddress, setCustomerAddress] = useState("");
+  const [shippingMethod, setShippingMethod] = useState("Bưu điện");
   const [customerSearchKeyword, setCustomerSearchKeyword] = useState(normalizedInitialPhone);
   const [customerSuggestions, setCustomerSuggestions] = useState<CustomerSuggestion[]>([]);
   const [showCustomerSuggestions, setShowCustomerSuggestions] = useState(false);
@@ -329,6 +333,7 @@ export function CreateOrderClient({ initialPhone = "" }: { initialPhone?: string
     setPhone("");
     setCustomerName("");
     setCustomerAddress("");
+    setShippingMethod("Bưu điện");
     setCustomerSearchKeyword("");
     setCustomerSuggestions([]);
     setShowCustomerSuggestions(false);
@@ -431,6 +436,7 @@ export function CreateOrderClient({ initialPhone = "" }: { initialPhone?: string
         customerName: customerName.trim(),
         phone: normalizedPhone,
         shippingAddress: customerAddress.trim(),
+        shippingMethod,
         temporary: true,
         items: draftItems.map((item) => ({
           productId: item.productId,
@@ -464,6 +470,7 @@ export function CreateOrderClient({ initialPhone = "" }: { initialPhone?: string
         customerName: customerName.trim(),
         phone: normalizedPhone,
         shippingAddress: customerAddress.trim(),
+        shippingMethod,
         status: "Đã thanh toán",
         extraChargeIds: selectedExtraCharges,
         items: draftItems.map((item) => ({
@@ -510,6 +517,7 @@ export function CreateOrderClient({ initialPhone = "" }: { initialPhone?: string
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         orderCodes: selectedTempOrders,
+        shippingMethod,
         extraChargeIds: selectedExtraCharges,
       }),
     });
@@ -578,6 +586,14 @@ export function CreateOrderClient({ initialPhone = "" }: { initialPhone?: string
                   value={customerAddress}
                   onChange={setCustomerAddress}
                   autoComplete="street-address"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <ChoiceGroup
+                  label="Loại giao"
+                  value={shippingMethod}
+                  options={SHIPPING_METHOD_OPTIONS}
+                  onChange={setShippingMethod}
                 />
               </div>
             </div>
@@ -889,6 +905,7 @@ export function CreateOrderClient({ initialPhone = "" }: { initialPhone?: string
               <Row label="Khách hàng" value={customerName || "Chưa nhập"} />
               <Row label="Số điện thoại" value={normalizedPhone || "Chưa nhập"} />
               <Row label="Địa chỉ" value={customerAddress || "Chưa nhập"} />
+              <Row label="Loại giao" value={shippingMethod} />
               <Row label="Số sản phẩm" value={`${draftItems.length}`} />
               <Row label="Tổng số lượng" value={`${totalQuantity}`} />
               <Row label="Tổng tiền hàng" value={formatCurrency(subtotal)} strong />
@@ -949,6 +966,7 @@ export function CreateOrderClient({ initialPhone = "" }: { initialPhone?: string
                   setPhone("");
                   setCustomerName("");
                   setCustomerAddress("");
+                  setShippingMethod("Bưu điện");
                   setCustomerSearchKeyword("");
                   setPhoneTouched(false);
                   setSelectedTempOrders([]);
@@ -989,6 +1007,9 @@ export function CreateOrderClient({ initialPhone = "" }: { initialPhone?: string
                         <StatusBadge status={order.status} />
                       </span>
                       <span className="block font-semibold">{order.total}</span>
+                      <span className="mt-1 inline-flex rounded-full bg-surface-container px-3 py-1 text-xs font-medium text-on-surface-variant">
+                        {order.shippingMethod}
+                      </span>
                       <span className="mt-1 block text-sm text-secondary-neutral-gray">
                         {order.time} • {order.items || "Chưa có sản phẩm"}
                       </span>
@@ -1056,6 +1077,48 @@ function Field({
         onChange={(event) => onChange(event.target.value)}
       />
     </label>
+  );
+}
+
+function ChoiceGroup({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  options: readonly string[];
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div>
+      <span className="mb-2 block text-sm font-medium text-on-surface-variant">{label}</span>
+      <div className="grid gap-3 sm:grid-cols-3">
+        {options.map((option) => {
+          const checked = value === option;
+          return (
+            <label
+              key={option}
+              className={`cursor-pointer rounded-xl border px-4 py-3 text-sm font-medium transition ${
+                checked
+                  ? "border-action-blue bg-blue-50 text-action-blue"
+                  : "border-soft-border-gray bg-white text-on-surface"
+              }`}
+            >
+              <input
+                className="mr-2 accent-[var(--action-blue)]"
+                type="radio"
+                name="shippingMethod"
+                checked={checked}
+                onChange={() => onChange(option)}
+              />
+              {option}
+            </label>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 

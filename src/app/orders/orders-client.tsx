@@ -13,6 +13,7 @@ type OrderRow = {
   phone: string;
   total: string;
   status: string;
+  shippingMethod: string;
   time: string;
   items: string;
 };
@@ -40,12 +41,16 @@ type MergeCandidate = {
   groupKey: string;
 };
 
+const SHIPPING_METHOD_OPTIONS = ["Bưu điện", "Nội thành", "Qua lấy"] as const;
+
 export function OrdersClient() {
   const router = useRouter();
   const [orders, setOrders] = useState<OrderRow[]>([]);
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("Tất cả");
+  const [shippingMethod, setShippingMethod] = useState("Tất cả");
+  const [mergeShippingMethod, setMergeShippingMethod] = useState("Bưu điện");
   const [page, setPage] = useState(1);
   const [meta, setMeta] = useState({
     total: 0,
@@ -95,10 +100,11 @@ export function OrdersClient() {
     const params = new URLSearchParams();
     if (search) params.set("search", search);
     if (status !== "Tất cả") params.set("status", status);
+    if (shippingMethod !== "Tất cả") params.set("shippingMethod", shippingMethod);
     params.set("page", String(page));
     params.set("pageSize", "5");
     return params.toString();
-  }, [page, search, status]);
+  }, [page, search, shippingMethod, status]);
 
   useEffect(() => {
     let active = true;
@@ -229,6 +235,7 @@ export function OrdersClient() {
     setMergeSearchInput(searchInput.trim());
     setMergeSearch(searchInput.trim());
     setSelectedMergeCodes([]);
+    setMergeShippingMethod("Bưu điện");
     setMergeError("");
   }
 
@@ -236,6 +243,7 @@ export function OrdersClient() {
     if (isMerging) return;
     setShowMergeModal(false);
     setSelectedMergeCodes([]);
+    setMergeShippingMethod("Bưu điện");
     setMergeError("");
   }
 
@@ -264,7 +272,10 @@ export function OrdersClient() {
     const response = await fetch("/api/orders/merge", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ orderCodes: selectedMergeCodes }),
+      body: JSON.stringify({
+        orderCodes: selectedMergeCodes,
+        shippingMethod: mergeShippingMethod,
+      }),
     });
     const payload = (await response.json()) as { data?: { code: string }; error?: string };
 
@@ -367,6 +378,29 @@ export function OrdersClient() {
                 />
               </span>
             </label>
+            <label className="flex items-center gap-3 text-sm text-on-surface-variant">
+              Loại giao:
+              <span className="relative inline-flex">
+                <select
+                  className="focus-ring h-10 min-w-36 appearance-none rounded-full border border-soft-border-gray bg-white py-0 pl-5 pr-10 text-sm font-medium text-on-surface shadow-[0_2px_8px_rgba(24,28,35,0.04)] transition hover:border-mid-border-gray"
+                  value={shippingMethod}
+                  onChange={(event) => {
+                    setShippingMethod(event.target.value);
+                    setPage(1);
+                  }}
+                >
+                  <option>Tất cả</option>
+                  <option>Bưu điện</option>
+                  <option>Nội thành</option>
+                  <option>Qua lấy</option>
+                </select>
+                <ChevronDown
+                  className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-secondary-neutral-gray"
+                  size={16}
+                  strokeWidth={2}
+                />
+              </span>
+            </label>
           </div>
         </div>
         {printError ? (
@@ -405,6 +439,7 @@ export function OrdersClient() {
               <th className="px-6 py-4 font-medium">Khách hàng</th>
               <th className="px-6 py-4 font-medium">Số điện thoại</th>
               <th className="px-6 py-4 font-medium">Tổng tiền</th>
+              <th className="px-6 py-4 font-medium">Loại giao</th>
               <th className="px-6 py-4 font-medium">Trạng thái</th>
               <th className="px-6 py-4 font-medium">Thời gian</th>
               <th className="px-6 py-4 font-medium">Thao tác</th>
@@ -413,7 +448,7 @@ export function OrdersClient() {
           <tbody className="divide-y divide-soft-border-gray">
             {isLoading ? (
               <tr>
-                <td className="px-6 py-8 text-secondary-neutral-gray" colSpan={8}>
+                <td className="px-6 py-8 text-secondary-neutral-gray" colSpan={9}>
                   Đang tải đơn hàng...
                 </td>
               </tr>
@@ -474,6 +509,12 @@ export function OrdersClient() {
                     onClick={() => router.push(`/orders/${order.id}`)}
                   >
                     {order.total}
+                  </td>
+                  <td
+                    className="cursor-pointer px-6 py-5 text-secondary-neutral-gray"
+                    onClick={() => router.push(`/orders/${order.id}`)}
+                  >
+                    {order.shippingMethod}
                   </td>
                   <td className="cursor-pointer px-6 py-5" onClick={() => router.push(`/orders/${order.id}`)}>
                     <StatusBadge status={order.status} />
@@ -537,17 +578,48 @@ export function OrdersClient() {
                 </button>
               </div>
               <div className="border-b border-soft-border-gray px-6 py-4">
-                <div className="relative max-w-md">
-                  <Search
-                    className="absolute left-3 top-1/2 -translate-y-1/2 text-secondary-neutral-gray"
-                    size={18}
-                  />
-                  <input
-                    className="focus-ring h-10 w-full rounded-full border border-soft-border-gray bg-surface-container-lowest pl-10 pr-4 text-sm"
-                    placeholder="Tìm theo mã phiếu, tên khách, số điện thoại..."
-                    value={mergeSearchInput}
-                    onChange={(event) => setMergeSearchInput(event.target.value)}
-                  />
+                <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
+                  <div className="relative max-w-md">
+                    <Search
+                      className="absolute left-3 top-1/2 -translate-y-1/2 text-secondary-neutral-gray"
+                      size={18}
+                    />
+                    <input
+                      className="focus-ring h-10 w-full rounded-full border border-soft-border-gray bg-surface-container-lowest pl-10 pr-4 text-sm"
+                      placeholder="Tìm theo mã phiếu, tên khách, số điện thoại..."
+                      value={mergeSearchInput}
+                      onChange={(event) => setMergeSearchInput(event.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <p className="mb-2 text-sm font-medium text-on-surface-variant">
+                      Loại giao cho đơn gộp
+                    </p>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {SHIPPING_METHOD_OPTIONS.map((option) => {
+                        const checked = mergeShippingMethod === option;
+                        return (
+                          <label
+                            key={option}
+                            className={`cursor-pointer rounded-xl border px-4 py-3 text-sm font-medium transition ${
+                              checked
+                                ? "border-action-blue bg-blue-50 text-action-blue"
+                                : "border-soft-border-gray bg-white text-on-surface"
+                            }`}
+                          >
+                            <input
+                              className="mr-2 accent-[var(--action-blue)]"
+                              type="radio"
+                              name="mergeShippingMethod"
+                              checked={checked}
+                              onChange={() => setMergeShippingMethod(option)}
+                            />
+                            {option}
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
               </div>
               <div className="max-h-[50vh] overflow-auto">

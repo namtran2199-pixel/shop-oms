@@ -87,9 +87,11 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const body = (await request.json()) as {
     orderCodes?: string[];
+    shippingMethod?: string;
     extraChargeIds?: string[];
   };
   const orderCodes = Array.from(new Set(body.orderCodes?.filter(Boolean) ?? []));
+  const shippingMethod = body.shippingMethod?.trim() || null;
   const extraChargeIds = Array.from(new Set(body.extraChargeIds?.filter(Boolean) ?? []));
 
   if (orderCodes.length < 1) {
@@ -186,6 +188,7 @@ export async function POST(request: Request) {
             status: OrderStatus.PROCESSING,
             subtotal,
             total: subtotal + extraChargeTotal,
+            shippingMethod,
             paymentMethod: "Chưa ghi nhận",
             items: {
               create: items.map((item) => ({

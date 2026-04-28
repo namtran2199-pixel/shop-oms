@@ -49,6 +49,7 @@ export async function getOrders() {
     total: formatCurrency(order.total),
     status: formatOrderStatus(order.status),
     statusCode: order.status,
+    shippingMethod: order.shippingMethod ?? "Chưa chọn",
     time: formatOrderTime(order.createdAt),
     items: order.items.map((item) => item.name).join(", "),
     sourceCodes: order.mergedOrders.map((mergedOrder) => mergedOrder.code),
