@@ -5,7 +5,7 @@ import { CreateOrderClient } from "./create-order-client";
 export default async function CreateOrderPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ phone?: string }>;
+  searchParams?: Promise<{ phone?: string; name?: string; address?: string }>;
 }) {
   const resolvedSearchParams = await searchParams;
 
@@ -17,7 +17,11 @@ export default async function CreateOrderPage({
           description="Lưu phiếu tạm cho từng lần khách đặt, sau đó gộp phiếu khi chuẩn bị ship."
         />
       </div>
-      <CreateOrderClient initialPhone={resolvedSearchParams?.phone ?? ""} />
+      <CreateOrderClient
+        initialPhone={resolvedSearchParams?.phone ?? ""}
+        initialName={resolvedSearchParams?.name ?? ""}
+        initialAddress={resolvedSearchParams?.address ?? ""}
+      />
     </AppShell>
   );
 }

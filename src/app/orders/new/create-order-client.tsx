@@ -115,15 +115,25 @@ function productMatchesSearch(product: ProductOption, keyword: string) {
   );
 }
 
-export function CreateOrderClient({ initialPhone = "" }: { initialPhone?: string }) {
+export function CreateOrderClient({
+  initialPhone = "",
+  initialName = "",
+  initialAddress = "",
+}: {
+  initialPhone?: string;
+  initialName?: string;
+  initialAddress?: string;
+}) {
   const router = useRouter();
   const normalizedInitialPhone = normalizePhoneInput(initialPhone);
   const [products, setProducts] = useState<ProductOption[]>([]);
   const [phone, setPhone] = useState(normalizedInitialPhone);
-  const [customerName, setCustomerName] = useState("");
-  const [customerAddress, setCustomerAddress] = useState("");
+  const [customerName, setCustomerName] = useState(initialName);
+  const [customerAddress, setCustomerAddress] = useState(initialAddress);
   const [shippingMethod, setShippingMethod] = useState("Bưu điện");
-  const [customerSearchKeyword, setCustomerSearchKeyword] = useState(normalizedInitialPhone);
+  const [customerSearchKeyword, setCustomerSearchKeyword] = useState(
+    normalizedInitialPhone || initialName,
+  );
   const [customerSuggestions, setCustomerSuggestions] = useState<CustomerSuggestion[]>([]);
   const [showCustomerSuggestions, setShowCustomerSuggestions] = useState(false);
   const [isSearchingCustomers, setIsSearchingCustomers] = useState(false);

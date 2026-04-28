@@ -78,6 +78,16 @@ export function CustomersClient() {
   const [editError, setEditError] = useState("");
   const [isSavingEdit, setIsSavingEdit] = useState(false);
 
+  const createOrderHref = useMemo(() => {
+    const params = new URLSearchParams();
+    const selectedCustomer = data.selectedCustomer;
+    if (selectedCustomer?.phone) params.set("phone", selectedCustomer.phone);
+    if (selectedCustomer?.name) params.set("name", selectedCustomer.name);
+    if (selectedCustomer?.address) params.set("address", selectedCustomer.address);
+    const queryString = params.toString();
+    return queryString ? `/orders/new?${queryString}` : "/orders/new";
+  }, [data.selectedCustomer]);
+
   useEffect(() => {
     const timeout = window.setTimeout(() => {
       setSearch(searchInput.trim());
@@ -475,7 +485,7 @@ export function CustomersClient() {
                   </div>
                   <div className="flex flex-nowrap items-center gap-3 overflow-x-auto">
                     <Link
-                      href="/orders/new"
+                      href={createOrderHref}
                       className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-action-blue px-4 text-sm text-white shadow-[0_2px_8px_rgba(0,113,227,0.2)] transition hover:opacity-90 active:scale-[0.98]"
                     >
                       <Plus size={16} />
