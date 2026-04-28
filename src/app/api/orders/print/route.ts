@@ -38,12 +38,12 @@ export async function POST(request: Request) {
 
   const printableOrders = orders.filter((order) => {
     if (!order) return false;
-    return order.status !== "Phiếu tạm" && order.status !== "Đã gộp";
+    return order.status !== "Đã gộp";
   });
 
   if (printableOrders.length !== orders.length) {
     return NextResponse.json(
-      { error: "Chỉ có thể in đơn đã chốt, không in phiếu tạm hoặc đơn đã gộp." },
+      { error: "Không thể in đơn đã gộp." },
       { status: 400 },
     );
   }

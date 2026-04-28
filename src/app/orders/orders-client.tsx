@@ -474,7 +474,7 @@ export function OrdersClient() {
                         toggleSelectedOrder(order.id);
                       }}
                       disabled={!canPrint}
-                      title={canPrint ? "Chọn đơn để in" : "Phiếu tạm hoặc đơn đã gộp chưa thể in"}
+                      title={canPrint ? "Chọn đơn để in" : "Đơn đã gộp chưa thể in"}
                     >
                       <span className="grid h-5 w-5 place-items-center rounded border border-mid-border-gray bg-white">
                         {isSelected ? <CheckSquare size={16} /> : null}
@@ -718,7 +718,7 @@ export function OrdersClient() {
 }
 
 function canPrintOrder(order: OrderRow) {
-  return order.status !== "Phiếu tạm" && order.status !== "Đã gộp";
+  return order.status !== "Đã gộp";
 }
 
 function formatCurrency(value: number) {

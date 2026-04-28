@@ -265,7 +265,7 @@ export function OrderDetailClient({ code }: { code: string }) {
     return <div className="text-secondary-neutral-gray">Đang tải đơn hàng...</div>;
   }
 
-  const canPrint = order.status !== "Phiếu tạm" && order.status !== "Đã gộp";
+  const canPrint = order.status !== "Đã gộp";
   const editingSubtotal = draftItems.reduce((sum, item) => sum + item.unitPrice * item.qty, 0);
 
   return (
