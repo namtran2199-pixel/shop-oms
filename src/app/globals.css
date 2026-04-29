@@ -180,7 +180,6 @@ textarea:disabled {
     box-sizing: border-box;
     display: block;
     width: 210mm;
-    height: 297mm;
     padding: 0;
     margin: 0 auto;
     background: #ffffff;
@@ -196,7 +195,6 @@ textarea:disabled {
   .print-receipt-content {
     box-sizing: border-box;
     width: var(--receipt-width);
-    height: 297mm;
     padding: var(--receipt-padding-top) var(--receipt-padding-x) var(--receipt-padding-bottom);
     margin: 0 auto;
   }
