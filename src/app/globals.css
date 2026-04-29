@@ -190,9 +190,16 @@ textarea:disabled {
     font-family: Arial, "Helvetica Neue", sans-serif;
     font-size: var(--receipt-body-size);
     line-height: 1.35;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     page: receipt-4x6;
     break-after: avoid-page;
     page-break-after: avoid;
+  }
+
+  .print-receipt-content {
+    width: 100%;
   }
 
   .print-receipt[data-paper-size="LABEL_4X6"] {
