@@ -161,42 +161,56 @@ textarea:disabled {
   }
 
   .print-receipt {
-    --receipt-width: 190mm;
-    --receipt-padding-x: 10mm;
-    --receipt-padding-top: 10mm;
-    --receipt-padding-bottom: 12mm;
-    --receipt-title-size: 22px;
-    --receipt-body-size: 14px;
-    --receipt-meta-size: 15px;
-    --receipt-qr-size: 40mm;
-    --receipt-summary-size: 14px;
-    --receipt-summary-value-width: 30mm;
-    --receipt-total-size: 32px;
-    --receipt-total-gap: 4mm;
-    --receipt-total-margin-top: 10px;
-    --receipt-total-margin-bottom: 12px;
-    --receipt-qty-width: 72px;
-    --receipt-amount-width: 84px;
     box-sizing: border-box;
     display: block;
-    width: 210mm;
-    padding: 0;
+    width: 100%;
+    padding: 0 !important;
     margin: 0 auto;
     background: #ffffff;
-    color: #000000;
-    font-family: Arial, "Helvetica Neue", sans-serif;
-    font-size: var(--receipt-body-size);
-    line-height: 1.35;
     page: receipt-a4;
     break-after: avoid-page;
     page-break-after: avoid;
   }
 
   .print-receipt-content {
+    --receipt-scale: 1.82;
+    box-sizing: border-box;
+    width: 210mm;
+    height: 297mm;
+    margin: 0 auto;
+    overflow: hidden;
+    display: grid;
+    place-items: center;
+  }
+
+  .print-receipt-label {
+    --receipt-width: 95mm;
+    --receipt-height: 150mm;
+    --receipt-padding-x: 6mm;
+    --receipt-padding-top: 6mm;
+    --receipt-padding-bottom: 7mm;
+    --receipt-title-size: 16px;
+    --receipt-body-size: 11px;
+    --receipt-meta-size: 11px;
+    --receipt-qr-size: 24mm;
+    --receipt-summary-size: 11px;
+    --receipt-summary-value-width: 20mm;
+    --receipt-total-size: 20px;
+    --receipt-total-gap: 2.5mm;
+    --receipt-total-margin-top: 6px;
+    --receipt-total-margin-bottom: 8px;
+    --receipt-qty-width: 52px;
+    --receipt-amount-width: 60px;
     box-sizing: border-box;
     width: var(--receipt-width);
+    min-height: var(--receipt-height);
     padding: var(--receipt-padding-top) var(--receipt-padding-x) var(--receipt-padding-bottom);
-    margin: 0 auto;
+    color: #000000;
+    font-family: Arial, "Helvetica Neue", sans-serif;
+    font-size: var(--receipt-body-size);
+    line-height: 1.35;
+    transform: scale(var(--receipt-scale));
+    transform-origin: center center;
   }
 
   .print-receipt[data-paper-size="A7"] {
@@ -224,7 +238,6 @@ textarea:disabled {
   }
 
   .print-receipt[data-paper-size="A4"] {
-    --receipt-width: 190mm;
     page: receipt-a4;
   }
 
