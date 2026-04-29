@@ -161,6 +161,25 @@ textarea:disabled {
   }
 
   .print-receipt {
+    --receipt-page-width: 210mm;
+    --receipt-page-height: 297mm;
+    display: block;
+    box-sizing: border-box;
+    width: var(--receipt-page-width);
+    max-width: var(--receipt-page-width);
+    min-height: var(--receipt-page-height);
+    padding: 0;
+    margin: 0 auto;
+    background: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    page: receipt-a4;
+    break-after: avoid-page;
+    page-break-after: avoid;
+  }
+
+  .print-receipt-content {
     --receipt-width: 100mm;
     --receipt-height: 150mm;
     --receipt-padding-x: 7mm;
@@ -178,32 +197,18 @@ textarea:disabled {
     --receipt-total-margin-bottom: 8px;
     --receipt-qty-width: 54px;
     --receipt-amount-width: 64px;
-    display: block;
     box-sizing: border-box;
     width: var(--receipt-width);
-    max-width: var(--receipt-width);
     min-height: var(--receipt-height);
     padding: var(--receipt-padding-top) var(--receipt-padding-x) var(--receipt-padding-bottom);
-    margin: 0 auto;
-    background: #ffffff;
     color: #000000;
     font-family: Arial, "Helvetica Neue", sans-serif;
     font-size: var(--receipt-body-size);
     line-height: 1.35;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    page: receipt-4x6;
-    break-after: avoid-page;
-    page-break-after: avoid;
-  }
-
-  .print-receipt-content {
-    width: 100%;
   }
 
   .print-receipt[data-paper-size="LABEL_4X6"] {
-    page: receipt-4x6;
+    page: receipt-a4;
   }
 
   .print-receipt[data-paper-size="A7"] {
