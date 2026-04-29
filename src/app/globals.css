@@ -164,7 +164,6 @@ textarea:disabled {
     box-sizing: border-box;
     display: block;
     width: 100%;
-    max-height: 296.5mm;
     padding: 0 !important;
     margin: 0 auto;
     background: #ffffff;
@@ -177,35 +176,34 @@ textarea:disabled {
   }
 
   .print-receipt-content {
-    --receipt-scale: 1.82;
     box-sizing: border-box;
     width: 210mm;
-    height: 296.5mm;
-    max-height: 296.5mm;
+    min-height: 296mm;
     margin: 0 auto;
     overflow: hidden;
-    display: grid;
-    place-items: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .print-receipt-label {
-    --receipt-width: 95mm;
-    --receipt-height: 150mm;
-    --receipt-padding-x: 6mm;
-    --receipt-padding-top: 6mm;
-    --receipt-padding-bottom: 7mm;
-    --receipt-title-size: 16px;
-    --receipt-body-size: 11px;
-    --receipt-meta-size: 11px;
-    --receipt-qr-size: 24mm;
-    --receipt-summary-size: 11px;
-    --receipt-summary-value-width: 20mm;
-    --receipt-total-size: 20px;
-    --receipt-total-gap: 2.5mm;
-    --receipt-total-margin-top: 6px;
-    --receipt-total-margin-bottom: 8px;
-    --receipt-qty-width: 52px;
-    --receipt-amount-width: 60px;
+    --receipt-width: 166mm;
+    --receipt-height: 262mm;
+    --receipt-padding-x: 10mm;
+    --receipt-padding-top: 10mm;
+    --receipt-padding-bottom: 12mm;
+    --receipt-title-size: 28px;
+    --receipt-body-size: 19px;
+    --receipt-meta-size: 19px;
+    --receipt-qr-size: 42mm;
+    --receipt-summary-size: 18px;
+    --receipt-summary-value-width: 34mm;
+    --receipt-total-size: 34px;
+    --receipt-total-gap: 4mm;
+    --receipt-total-margin-top: 10px;
+    --receipt-total-margin-bottom: 12px;
+    --receipt-qty-width: 88px;
+    --receipt-amount-width: 106px;
     box-sizing: border-box;
     width: var(--receipt-width);
     min-height: var(--receipt-height);
@@ -214,8 +212,6 @@ textarea:disabled {
     font-family: Arial, "Helvetica Neue", sans-serif;
     font-size: var(--receipt-body-size);
     line-height: 1.35;
-    transform: scale(var(--receipt-scale));
-    transform-origin: center center;
   }
 
   .print-receipt[data-paper-size="A7"] {
