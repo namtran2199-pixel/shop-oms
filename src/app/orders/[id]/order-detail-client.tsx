@@ -666,6 +666,7 @@ export function PrintableReceipt({ order }: { order: OrderDetail }) {
           )}
         </div>
 
+        <div className="receipt-customer">
           <p>
             <strong>Khách hàng:</strong> {order.customer.name}
           </p>
@@ -713,6 +714,8 @@ export function PrintableReceipt({ order }: { order: OrderDetail }) {
           ))}
         </div>
 
+        <div className="receipt-dashed" />
+        <div className="receipt-summary">
           <p>
             <span>Tiền hàng:</span> <strong>{formatReceiptMoney(order.subtotalValue)}</strong>
           </p>
