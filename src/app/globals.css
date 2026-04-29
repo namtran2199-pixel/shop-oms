@@ -161,25 +161,27 @@ textarea:disabled {
   }
 
   .print-receipt {
-    --receipt-page-width: 210mm;
-    --receipt-page-height: 297mm;
     display: block;
-    box-sizing: border-box;
-    width: var(--receipt-page-width);
-    max-width: var(--receipt-page-width);
-    min-height: var(--receipt-page-height);
-    padding: 0;
     margin: 0 auto;
     background: #ffffff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
     page: receipt-a4;
     break-after: avoid-page;
     page-break-after: avoid;
   }
 
   .print-receipt-content {
+    --receipt-page-width: 210mm;
+    --receipt-page-height: 297mm;
+    box-sizing: border-box;
+    width: var(--receipt-page-width);
+    min-height: var(--receipt-page-height);
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .print-receipt-label {
     --receipt-width: 100mm;
     --receipt-height: 150mm;
     --receipt-padding-x: 7mm;

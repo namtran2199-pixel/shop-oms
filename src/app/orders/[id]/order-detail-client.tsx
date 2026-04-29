@@ -647,93 +647,95 @@ export function PrintableReceipt({ order }: { order: OrderDetail }) {
       aria-hidden="true"
     >
       <div className="print-receipt-content">
-        <h1>{order.store.name}</h1>
-        <p className="receipt-date">{order.receiptLongDateLabel}</p>
+        <div className="print-receipt-label">
+          <h1>{order.store.name}</h1>
+          <p className="receipt-date">{order.receiptLongDateLabel}</p>
 
-        <div className="receipt-qr">
-          <p className="receipt-qr-label">Quét mã chuyển khoản:</p>
-          {order.store.qrCodeImageUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              className="receipt-qr-image"
-              src={order.store.qrCodeImageUrl}
-              alt="QR chuyển khoản"
-              loading="eager"
-              decoding="sync"
-            />
-          ) : (
-            <div className="receipt-qr-placeholder">{order.code}</div>
-          )}
-        </div>
+          <div className="receipt-qr">
+            <p className="receipt-qr-label">Quét mã chuyển khoản:</p>
+            {order.store.qrCodeImageUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                className="receipt-qr-image"
+                src={order.store.qrCodeImageUrl}
+                alt="QR chuyển khoản"
+                loading="eager"
+                decoding="sync"
+              />
+            ) : (
+              <div className="receipt-qr-placeholder">{order.code}</div>
+            )}
+          </div>
 
-        <div className="receipt-customer">
-          <p>
-            <strong>Khách hàng:</strong> {order.customer.name}
-          </p>
-          <p>
-            <strong>Sđt:</strong> {order.customer.phone}
-          </p>
-          {order.shippingAddress !== "Chưa có địa chỉ" ? (
+          <div className="receipt-customer">
             <p>
-              <strong>Địa chỉ:</strong> {order.shippingAddress}
+              <strong>Khách hàng:</strong> {order.customer.name}
             </p>
-          ) : null}
-          {order.shippingMethod !== "Chưa chọn" ? (
             <p>
-              <strong>Loại giao:</strong> {order.shippingMethod}
+              <strong>Sđt:</strong> {order.customer.phone}
             </p>
-          ) : null}
-        </div>
+            {order.shippingAddress !== "Chưa có địa chỉ" ? (
+              <p>
+                <strong>Địa chỉ:</strong> {order.shippingAddress}
+              </p>
+            ) : null}
+            {order.shippingMethod !== "Chưa chọn" ? (
+              <p>
+                <strong>Loại giao:</strong> {order.shippingMethod}
+              </p>
+            ) : null}
+          </div>
 
-        <div className="receipt-line" />
-        <div className="receipt-row receipt-head">
-          <span>Đơn giá</span>
-          <span>Số lượng</span>
-          <span>Thành tiền</span>
-        </div>
-        <div className="receipt-line" />
+          <div className="receipt-line" />
+          <div className="receipt-row receipt-head">
+            <span>Đơn giá</span>
+            <span>Số lượng</span>
+            <span>Thành tiền</span>
+          </div>
+          <div className="receipt-line" />
 
-        <div className="receipt-items">
-          {order.items.map((item) => (
-            <div className="receipt-item" key={item.sku || item.name}>
-              <p className="receipt-item-name">{item.name}</p>
-              {item.detail ? <p>{item.detail}</p> : null}
-              <div className="receipt-row">
-                <span className="inline-flex items-center gap-2">
-                  {item.unitPrice < item.originalUnitPrice ? (
-                    <span className="line-through opacity-60">
-                      {formatReceiptMoney(item.originalUnitPrice)}
-                    </span>
-                  ) : null}
-                  <span>{formatReceiptMoney(item.unitPrice)}</span>
-                </span>
-                <span>{item.qty}</span>
-                <span>{formatReceiptMoney(item.lineTotal)}</span>
+          <div className="receipt-items">
+            {order.items.map((item) => (
+              <div className="receipt-item" key={item.sku || item.name}>
+                <p className="receipt-item-name">{item.name}</p>
+                {item.detail ? <p>{item.detail}</p> : null}
+                <div className="receipt-row">
+                  <span className="inline-flex items-center gap-2">
+                    {item.unitPrice < item.originalUnitPrice ? (
+                      <span className="line-through opacity-60">
+                        {formatReceiptMoney(item.originalUnitPrice)}
+                      </span>
+                    ) : null}
+                    <span>{formatReceiptMoney(item.unitPrice)}</span>
+                  </span>
+                  <span>{item.qty}</span>
+                  <span>{formatReceiptMoney(item.lineTotal)}</span>
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
 
-        <div className="receipt-dashed" />
-        <div className="receipt-summary">
-          <p>
-            <span>Tiền hàng:</span> <strong>{formatReceiptMoney(order.subtotalValue)}</strong>
-          </p>
-          {order.shippingFeeValue > 0 ? (
+          <div className="receipt-dashed" />
+          <div className="receipt-summary">
             <p>
-              <span>Tiền ship:</span> <strong>{formatReceiptMoney(order.shippingFeeValue)}</strong>
+              <span>Tiền hàng:</span> <strong>{formatReceiptMoney(order.subtotalValue)}</strong>
             </p>
-          ) : null}
-          {order.extraCharges.map((charge) => (
-            <p key={charge.name}>
-              <span>{charge.name}:</span> <strong>{formatReceiptMoney(charge.amount)}</strong>
-            </p>
-          ))}
+            {order.shippingFeeValue > 0 ? (
+              <p>
+                <span>Tiền ship:</span> <strong>{formatReceiptMoney(order.shippingFeeValue)}</strong>
+              </p>
+            ) : null}
+            {order.extraCharges.map((charge) => (
+              <p key={charge.name}>
+                <span>{charge.name}:</span> <strong>{formatReceiptMoney(charge.amount)}</strong>
+              </p>
+            ))}
+          </div>
+          <p className="receipt-total">
+            <span>TỔNG:</span>
+            <span>{formatReceiptMoney(order.totalValue)}</span>
+          </p>
         </div>
-        <p className="receipt-total">
-          <span>TỔNG:</span>
-          <span>{formatReceiptMoney(order.totalValue)}</span>
-        </p>
       </div>
     </section>
   );
