@@ -643,7 +643,7 @@ export function PrintableReceipt({ order }: { order: OrderDetail }) {
   return (
     <section
       className="print-receipt"
-      data-paper-size={order.store.paperSize || "A5"}
+      data-paper-size="LABEL_4X6"
       aria-hidden="true"
     >
       <h1>{order.store.name}</h1>

@@ -127,6 +127,11 @@ textarea:disabled {
     margin: 0;
   }
 
+  @page receipt-4x6 {
+    size: 100mm 150mm;
+    margin: 0;
+  }
+
   html,
   body {
     width: 100%;
@@ -156,27 +161,28 @@ textarea:disabled {
   }
 
   .print-receipt {
-    --receipt-width: 148mm;
-    --receipt-padding-x: 8mm;
-    --receipt-padding-top: 8mm;
-    --receipt-padding-bottom: 10mm;
-    --receipt-title-size: 20px;
-    --receipt-body-size: 13px;
-    --receipt-meta-size: 15px;
-    --receipt-qr-size: 34mm;
-    --receipt-summary-size: 14px;
+    --receipt-width: 100mm;
+    --receipt-height: 150mm;
+    --receipt-padding-x: 7mm;
+    --receipt-padding-top: 7mm;
+    --receipt-padding-bottom: 8mm;
+    --receipt-title-size: 18px;
+    --receipt-body-size: 12px;
+    --receipt-meta-size: 12px;
+    --receipt-qr-size: 28mm;
+    --receipt-summary-size: 12px;
     --receipt-summary-value-width: 24mm;
-    --receipt-total-size: 30px;
-    --receipt-total-gap: 4mm;
+    --receipt-total-size: 24px;
+    --receipt-total-gap: 3mm;
     --receipt-total-margin-top: 8px;
-    --receipt-total-margin-bottom: 10px;
-    --receipt-qty-width: 72px;
-    --receipt-amount-width: 78px;
+    --receipt-total-margin-bottom: 8px;
+    --receipt-qty-width: 54px;
+    --receipt-amount-width: 64px;
     display: block;
     box-sizing: border-box;
     width: var(--receipt-width);
-    max-width: 100%;
-    min-height: auto;
+    max-width: var(--receipt-width);
+    min-height: var(--receipt-height);
     padding: var(--receipt-padding-top) var(--receipt-padding-x) var(--receipt-padding-bottom);
     margin: 0 auto;
     background: #ffffff;
@@ -184,8 +190,13 @@ textarea:disabled {
     font-family: Arial, "Helvetica Neue", sans-serif;
     font-size: var(--receipt-body-size);
     line-height: 1.35;
+    page: receipt-4x6;
     break-after: avoid-page;
     page-break-after: avoid;
+  }
+
+  .print-receipt[data-paper-size="LABEL_4X6"] {
+    page: receipt-4x6;
   }
 
   .print-receipt[data-paper-size="A7"] {
