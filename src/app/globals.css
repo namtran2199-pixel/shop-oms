@@ -177,33 +177,33 @@ textarea:disabled {
 
   .print-receipt-content {
     box-sizing: border-box;
-    width: 210mm;
-    min-height: 296mm;
-    margin: 0 auto;
+    width: 100%;
+    margin: 0;
+    padding: 10mm 0;
     overflow: hidden;
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: center;
   }
 
   .print-receipt-label {
-    --receipt-width: 166mm;
-    --receipt-height: 262mm;
-    --receipt-padding-x: 10mm;
-    --receipt-padding-top: 10mm;
-    --receipt-padding-bottom: 12mm;
-    --receipt-title-size: 28px;
-    --receipt-body-size: 19px;
-    --receipt-meta-size: 19px;
-    --receipt-qr-size: 42mm;
-    --receipt-summary-size: 18px;
-    --receipt-summary-value-width: 34mm;
-    --receipt-total-size: 34px;
-    --receipt-total-gap: 4mm;
-    --receipt-total-margin-top: 10px;
-    --receipt-total-margin-bottom: 12px;
-    --receipt-qty-width: 88px;
-    --receipt-amount-width: 106px;
+    --receipt-width: 145mm;
+    --receipt-height: 229mm;
+    --receipt-padding-x: 8mm;
+    --receipt-padding-top: 8mm;
+    --receipt-padding-bottom: 9mm;
+    --receipt-title-size: 24px;
+    --receipt-body-size: 16px;
+    --receipt-meta-size: 16px;
+    --receipt-qr-size: 36mm;
+    --receipt-summary-size: 16px;
+    --receipt-summary-value-width: 28mm;
+    --receipt-total-size: 30px;
+    --receipt-total-gap: 3mm;
+    --receipt-total-margin-top: 8px;
+    --receipt-total-margin-bottom: 10px;
+    --receipt-qty-width: 74px;
+    --receipt-amount-width: 90px;
     box-sizing: border-box;
     width: var(--receipt-width);
     min-height: var(--receipt-height);
