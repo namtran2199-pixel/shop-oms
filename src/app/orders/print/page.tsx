@@ -10,9 +10,15 @@ export default async function OrdersPrintPage({
   const parsedCodes = parseCodes(codes);
 
   const orders = await Promise.all(parsedCodes.map((code) => getOrderDetail(code)));
-  const printableOrders = orders.filter((order) => order && order.status !== "Đã gộp");
+  const printableOrders = orders.filter(isPrintableOrder);
 
   return <PrintOrdersClient orders={printableOrders} />;
+}
+
+function isPrintableOrder(
+  order: Awaited<ReturnType<typeof getOrderDetail>>,
+): order is NonNullable<Awaited<ReturnType<typeof getOrderDetail>>> {
+  return Boolean(order) && order.status !== "Đã gộp";
 }
 
 function parseCodes(rawCodes: string | string[] | undefined) {
