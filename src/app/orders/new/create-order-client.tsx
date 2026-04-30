@@ -18,6 +18,7 @@ import {
 import { Button, Card, StatusBadge } from "@/components/ui";
 import {
   PrintableReceipt,
+  printReceiptHost,
   type OrderDetail,
   waitForPrintableReceiptAssets,
 } from "../[id]/order-detail-client";
@@ -301,8 +302,8 @@ export function CreateOrderClient({
   useEffect(() => {
     if (!printableOrder) return;
     const timer = window.setTimeout(() => {
-      waitForPrintableReceiptAssets().finally(() => {
-        window.print();
+      waitForPrintableReceiptAssets(1).finally(() => {
+        void printReceiptHost(1);
       });
     }, 0);
     return () => window.clearTimeout(timer);

@@ -5,12 +5,6 @@ import { useRouter } from "next/navigation";
 import { CheckSquare, ChevronDown, LoaderCircle, Printer, Search, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Button, Card, StatusBadge, TableCard } from "@/components/ui";
-import {
-  PrintableReceipt,
-  PrintableReceiptPortal,
-  type OrderDetail,
-  waitForPrintableReceiptAssets,
-} from "./[id]/order-detail-client";
 
 type OrderRow = {
   id: string;
@@ -66,7 +60,6 @@ export function OrdersClient() {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
   const [selectedPrintableOrderIds, setSelectedPrintableOrderIds] = useState<string[]>([]);
-  const [printableOrders, setPrintableOrders] = useState<OrderDetail[]>([]);
   const [isPrinting, setIsPrinting] = useState(false);
   const [printError, setPrintError] = useState("");
   const [showMergeModal, setShowMergeModal] = useState(false);
@@ -191,35 +184,32 @@ export function OrdersClient() {
     }));
   }
 
-  async function loadPrintableOrders(codes: string[]) {
+  function printSelectedOrders() {
+    if (selectedPrintableOrderIds.length === 0 || isPrinting) return;
     setPrintError("");
     setIsPrinting(true);
 
-    try {
-      const response = await fetch("/api/orders/print", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ codes }),
-      });
-      const payload = (await response.json()) as { data?: OrderDetail[]; error?: string };
-      if (!response.ok || !payload.data) {
-        throw new Error(payload.error ?? "Không thể tải đơn để in.");
-      }
-      setPrintableOrders(payload.data);
-    } catch (error) {
-      setPrintError(error instanceof Error ? error.message : "Không thể tải đơn để in.");
-      setIsPrinting(false);
-    }
-  }
+    const params = new URLSearchParams();
+    params.set("codes", selectedPrintableOrderIds.join(","));
+    window.open(`/orders/print?${params.toString()}`, "_blank", "noopener,noreferrer");
 
-  function printSelectedOrders() {
-    if (selectedPrintableOrderIds.length === 0 || isPrinting) return;
-    void loadPrintableOrders(selectedPrintableOrderIds);
+    window.setTimeout(() => {
+      setIsPrinting(false);
+    }, 300);
   }
 
   function printSingleOrder(code: string) {
     if (isPrinting) return;
-    void loadPrintableOrders([code]);
+    setPrintError("");
+    setIsPrinting(true);
+
+    const params = new URLSearchParams();
+    params.set("codes", code);
+    window.open(`/orders/print?${params.toString()}`, "_blank", "noopener,noreferrer");
+
+    window.setTimeout(() => {
+      setIsPrinting(false);
+    }, 300);
   }
 
   function toggleSelectedOrder(code: string) {
@@ -335,36 +325,8 @@ export function OrdersClient() {
     ? mergeCandidates.filter((item) => item.groupKey === selectedMergeGroupKey)
     : mergeCandidates;
 
-  useEffect(() => {
-    if (printableOrders.length === 0) return;
-
-    const timer = window.setTimeout(() => {
-      waitForPrintableReceiptAssets().finally(() => {
-        window.print();
-        setIsPrinting(false);
-      });
-    }, 0);
-
-    const handleAfterPrint = () => setPrintableOrders([]);
-    window.addEventListener("afterprint", handleAfterPrint);
-
-    return () => {
-      window.clearTimeout(timer);
-      window.removeEventListener("afterprint", handleAfterPrint);
-    };
-  }, [printableOrders]);
-
   return (
     <>
-      {printableOrders.length > 0 ? (
-        <PrintableReceiptPortal>
-          <div className="print-batch" aria-hidden="true">
-            {printableOrders.map((order) => (
-              <PrintableReceipt key={order.code} order={order} />
-            ))}
-          </div>
-        </PrintableReceiptPortal>
-      ) : null}
       <div className="screen-only">
         <div className="mb-8 space-y-5">
           <div className="flex flex-wrap items-center justify-end gap-3">

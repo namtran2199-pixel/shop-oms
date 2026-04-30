@@ -252,7 +252,6 @@ export async function getOrderDetail(code: string) {
       unitPrice: item.unitPrice,
       lineTotal: item.unitPrice * item.quantity,
       price: formatCurrency(item.unitPrice * item.quantity),
-      icon: iconMap[item.product.icon as keyof typeof iconMap] ?? Package,
     })),
   };
 }

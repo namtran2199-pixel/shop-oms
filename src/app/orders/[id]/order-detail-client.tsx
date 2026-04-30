@@ -67,14 +67,17 @@ declare global {
   }
 }
 
-export async function waitForPrintableReceiptAssets() {
+export async function waitForPrintableReceiptAssets(expectedReceiptCount = 1) {
   const maxWaitMs = 3000;
   const startedAt = Date.now();
 
   while (Date.now() - startedAt < maxWaitMs) {
     const receipts = document.querySelectorAll(".print-receipt");
     const images = Array.from(document.querySelectorAll<HTMLImageElement>(".print-receipt img"));
-    if (receipts.length > 0 && images.every((image) => Boolean(image.currentSrc || image.src))) {
+    if (
+      receipts.length >= expectedReceiptCount &&
+      images.every((image) => Boolean(image.currentSrc || image.src))
+    ) {
       break;
     }
 
@@ -122,20 +125,141 @@ export async function waitForPrintableReceiptAssets() {
   );
 }
 
-export function PrintableReceiptPortal({ children }: { children: React.ReactNode }) {
-  const [container, setContainer] = useState<HTMLElement | null>(null);
+async function waitForDocumentImages(doc: Document) {
+  const images = Array.from(doc.images);
 
-  useEffect(() => {
+  await Promise.all(
+    images.map(async (image) => {
+      const source = image.currentSrc || image.src;
+      if (!source) return;
+
+      if (image.complete && image.naturalWidth > 0) {
+        return;
+      }
+
+      await new Promise<void>((resolve) => {
+        const finalize = () => resolve();
+        image.addEventListener("load", finalize, { once: true });
+        image.addEventListener("error", finalize, { once: true });
+      });
+    }),
+  );
+}
+
+export async function printReceiptHost(expectedReceiptCount = 1) {
+  const host = document.querySelector<HTMLElement>(".print-receipt-host");
+  if (!host || !host.innerHTML.trim()) {
+    console.info("[print] host-missing", { expectedReceiptCount });
+    window.print();
+    return;
+  }
+
+  const maxWaitMs = 3000;
+  const startedAt = Date.now();
+
+  while (Date.now() - startedAt < maxWaitMs) {
+    const count = host.querySelectorAll(".print-receipt").length;
+    if (count >= expectedReceiptCount) break;
+    await new Promise<void>((resolve) => window.setTimeout(resolve, 50));
+  }
+
+  const mountedReceiptCount = host.querySelectorAll(".print-receipt").length;
+  console.info("[print] host-ready", {
+    expectedReceiptCount,
+    mountedReceiptCount,
+  });
+
+  const iframe = document.createElement("iframe");
+  iframe.style.position = "fixed";
+  iframe.style.right = "0";
+  iframe.style.bottom = "0";
+  iframe.style.width = "0";
+  iframe.style.height = "0";
+  iframe.style.border = "0";
+  iframe.setAttribute("aria-hidden", "true");
+  document.body.appendChild(iframe);
+
+  const styles = Array.from(document.head.querySelectorAll('style, link[rel="stylesheet"]'))
+    .map((node) => node.outerHTML)
+    .join("");
+
+  const receipts = Array.from(host.querySelectorAll<HTMLElement>(".print-receipt"));
+  const receiptHtml = receipts.map((receipt) => receipt.outerHTML).join("");
+  const receiptContainerClass = expectedReceiptCount > 1 ? "print-batch" : "";
+  const doc = iframe.contentDocument;
+
+  if (!doc || receiptHtml.length === 0) {
+    console.info("[print] iframe-fallback", {
+      expectedReceiptCount,
+      mountedReceiptCount,
+      serializedReceiptCount: receipts.length,
+    });
+    iframe.remove();
+    window.print();
+    return;
+  }
+
+  console.info("[print] iframe-build", {
+    expectedReceiptCount,
+    mountedReceiptCount,
+    serializedReceiptCount: receipts.length,
+  });
+
+  doc.open();
+  doc.write(`<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Print Receipt</title>
+    ${styles}
+  </head>
+  <body>
+    <div class="print-receipt-host">
+      <div class="${receiptContainerClass}">${receiptHtml}</div>
+    </div>
+  </body>
+</html>`);
+  doc.close();
+
+  await new Promise<void>((resolve) => {
+    iframe.onload = () => resolve();
+    window.setTimeout(resolve, 300);
+  });
+
+  await waitForDocumentImages(doc);
+  await new Promise<void>((resolve) =>
+    iframe.contentWindow?.requestAnimationFrame(() =>
+      iframe.contentWindow?.requestAnimationFrame(() => resolve()),
+    ),
+  );
+
+  const cleanup = () => {
+    iframe.contentWindow?.removeEventListener("afterprint", cleanup);
+    iframe.remove();
+  };
+
+  iframe.contentWindow?.addEventListener("afterprint", cleanup, { once: true });
+  iframe.contentWindow?.focus();
+  iframe.contentWindow?.print();
+}
+
+export function PrintableReceiptPortal({ children }: { children: React.ReactNode }) {
+  const container = useMemo(() => {
+    if (typeof document === "undefined") return null;
+
     const element = document.createElement("div");
     element.className = "print-receipt-host";
-    document.body.appendChild(element);
-    setContainer(element);
+    return element;
+  }, []);
+
+  useEffect(() => {
+    if (!container) return;
+    document.body.appendChild(container);
 
     return () => {
-      element.remove();
-      setContainer(null);
+      container.remove();
     };
-  }, []);
+  }, [container]);
 
   if (!container) return null;
 
@@ -368,8 +492,8 @@ export function OrderDetailClient({
       if (didDispatch) return;
     }
 
-    waitForPrintableReceiptAssets().finally(() => {
-      window.print();
+    waitForPrintableReceiptAssets(1).finally(() => {
+      void printReceiptHost(1);
     });
   }
 
@@ -699,23 +823,27 @@ export function PrintableReceipt({ order }: { order: OrderDetail }) {
     >
       <div className="print-receipt-content">
         <div className="print-receipt-label">
-          <h1>{order.store.name}</h1>
-          <p className="receipt-date">{order.receiptLongDateLabel}</p>
+          <div className="receipt-top">
+            <div className="receipt-store">
+              <h1>{order.store.name}</h1>
+              <p className="receipt-date">{order.receiptLongDateLabel}</p>
+              <p className="receipt-qr-label">Quét mã chuyển khoản:</p>
+            </div>
 
-          <div className="receipt-qr">
-            <p className="receipt-qr-label">Quét mã chuyển khoản:</p>
-            {order.store.qrCodeImageUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                className="receipt-qr-image"
-                src={order.store.qrCodeImageUrl}
-                alt="QR chuyển khoản"
-                loading="eager"
-                decoding="sync"
-              />
-            ) : (
-              <div className="receipt-qr-placeholder">{order.code}</div>
-            )}
+            <div className="receipt-qr">
+              {order.store.qrCodeImageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  className="receipt-qr-image"
+                  src={order.store.qrCodeImageUrl}
+                  alt="QR chuyển khoản"
+                  loading="eager"
+                  decoding="sync"
+                />
+              ) : (
+                <div className="receipt-qr-placeholder">{order.code}</div>
+              )}
+            </div>
           </div>
 
           <div className="receipt-customer">

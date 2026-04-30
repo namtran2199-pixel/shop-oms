@@ -154,10 +154,6 @@ textarea:disabled {
     background: #ffffff;
   }
 
-  body > * {
-    display: none !important;
-  }
-
   .app-shell,
   .app-shell main,
   .app-shell main > div {
@@ -283,20 +279,33 @@ textarea:disabled {
 
   .print-receipt h1 {
     margin: 0 0 6px;
-    text-align: center;
+    text-align: left;
     font-size: var(--receipt-title-size);
     font-weight: 800;
   }
 
   .receipt-date {
-    margin: 0 0 8px;
-    text-align: center;
+    margin: 0 0 10px;
+    text-align: left;
     font-size: var(--receipt-meta-size);
   }
 
+  .receipt-top {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) var(--receipt-qr-size);
+    align-items: start;
+    gap: 12mm;
+    margin-bottom: 8px;
+    break-inside: avoid;
+  }
+
+  .receipt-store {
+    min-width: 0;
+  }
+
   .receipt-qr {
-    margin: 0 0 12px;
-    text-align: center;
+    margin: 0;
+    text-align: right;
     break-inside: avoid;
   }
 
@@ -402,8 +411,8 @@ textarea:disabled {
   }
 
   .receipt-qr-label {
-    margin: 0 0 5px;
-    text-align: center;
+    margin: 0;
+    text-align: left;
     font-size: var(--receipt-meta-size);
     font-weight: 700;
   }
@@ -424,7 +433,7 @@ textarea:disabled {
     display: block;
     width: var(--receipt-qr-size);
     height: var(--receipt-qr-size);
-    margin: 0 auto;
+    margin-left: auto;
     object-fit: contain;
   }
 }
