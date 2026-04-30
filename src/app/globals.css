@@ -107,6 +107,17 @@ textarea:disabled {
   display: none;
 }
 
+.print-receipt-host {
+  position: fixed;
+  top: 0;
+  left: -10000px;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+  visibility: hidden;
+  pointer-events: none;
+}
+
 @media print {
   @page {
     margin: 0;
@@ -134,13 +145,17 @@ textarea:disabled {
 
   html,
   body {
-    width: 210mm;
+    width: 100%;
     min-height: auto !important;
     height: auto !important;
     margin: 0 !important;
     padding: 0 !important;
-    overflow: hidden !important;
+    overflow: visible !important;
     background: #ffffff;
+  }
+
+  body > * {
+    display: none !important;
   }
 
   .app-shell,
@@ -160,6 +175,16 @@ textarea:disabled {
     display: none !important;
   }
 
+  .print-receipt-host {
+    display: block !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    visibility: visible !important;
+    pointer-events: none;
+  }
+
   .print-receipt {
     box-sizing: border-box;
     display: block !important;
@@ -170,6 +195,10 @@ textarea:disabled {
     background: #ffffff;
     page: receipt-a4;
     overflow: hidden;
+    break-after: auto;
+    page-break-after: auto;
+    break-inside: avoid-page;
+    page-break-inside: avoid;
   }
 
   .print-receipt-content {

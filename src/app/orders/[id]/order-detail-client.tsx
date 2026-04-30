@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { createPortal } from "react-dom";
 import { Mail, Phone, Printer, Search, Trash2 } from "lucide-react";
 import { Button, Card, PageHeader, StatusBadge } from "@/components/ui";
 
@@ -67,11 +68,35 @@ declare global {
 }
 
 export async function waitForPrintableReceiptAssets() {
+  const maxWaitMs = 3000;
+  const startedAt = Date.now();
+
+  while (Date.now() - startedAt < maxWaitMs) {
+    const receipts = document.querySelectorAll(".print-receipt");
+    const images = Array.from(document.querySelectorAll<HTMLImageElement>(".print-receipt img"));
+    if (receipts.length > 0 && images.every((image) => Boolean(image.currentSrc || image.src))) {
+      break;
+    }
+
+    await new Promise<void>((resolve) => window.setTimeout(resolve, 50));
+  }
+
   const images = Array.from(document.querySelectorAll<HTMLImageElement>(".print-receipt img"));
 
   await Promise.all(
     images.map(async (image) => {
-      if (!image.currentSrc && !image.src) return;
+      const source = image.currentSrc || image.src;
+      if (!source) return;
+
+      // Force a separate preload path so print assets still load
+      // even when the receipt host is rendered off-screen.
+      await new Promise<void>((resolve) => {
+        const preload = new Image();
+        const finalize = () => resolve();
+        preload.addEventListener("load", finalize, { once: true });
+        preload.addEventListener("error", finalize, { once: true });
+        preload.src = source;
+      });
 
       if (image.complete && image.naturalWidth > 0) {
         if (typeof image.decode === "function") {
@@ -92,7 +117,29 @@ export async function waitForPrintableReceiptAssets() {
     }),
   );
 
-  await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+  await new Promise<void>((resolve) =>
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+  );
+}
+
+export function PrintableReceiptPortal({ children }: { children: React.ReactNode }) {
+  const [container, setContainer] = useState<HTMLElement | null>(null);
+
+  useEffect(() => {
+    const element = document.createElement("div");
+    element.className = "print-receipt-host";
+    document.body.appendChild(element);
+    setContainer(element);
+
+    return () => {
+      element.remove();
+      setContainer(null);
+    };
+  }, []);
+
+  if (!container) return null;
+
+  return createPortal(children, container);
 }
 
 export function OrderDetailClient({
@@ -346,7 +393,11 @@ export function OrderDetailClient({
 
   return (
     <>
-      {activeOrder ? <PrintableReceipt order={activeOrder} /> : null}
+      {activeOrder ? (
+        <PrintableReceiptPortal>
+          <PrintableReceipt order={activeOrder} />
+        </PrintableReceiptPortal>
+      ) : null}
       <div className="screen-only">
         {hasBatchTabs ? (
           <Card className="mb-6 overflow-hidden p-0">

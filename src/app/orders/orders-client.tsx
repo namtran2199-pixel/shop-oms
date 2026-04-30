@@ -7,6 +7,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Button, Card, StatusBadge, TableCard } from "@/components/ui";
 import {
   PrintableReceipt,
+  PrintableReceiptPortal,
   type OrderDetail,
   waitForPrintableReceiptAssets,
 } from "./[id]/order-detail-client";
@@ -356,11 +357,13 @@ export function OrdersClient() {
   return (
     <>
       {printableOrders.length > 0 ? (
-        <div className="print-batch" aria-hidden="true">
-          {printableOrders.map((order) => (
-            <PrintableReceipt key={order.code} order={order} />
-          ))}
-        </div>
+        <PrintableReceiptPortal>
+          <div className="print-batch" aria-hidden="true">
+            {printableOrders.map((order) => (
+              <PrintableReceipt key={order.code} order={order} />
+            ))}
+          </div>
+        </PrintableReceiptPortal>
       ) : null}
       <div className="screen-only">
         <div className="mb-8 space-y-5">
