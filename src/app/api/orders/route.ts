@@ -60,8 +60,8 @@ export async function GET(request: Request) {
   const shippingMethod = searchParams.get("shippingMethod")?.trim() ?? "Tất cả";
   const page = Math.max(1, Number(searchParams.get("page") ?? "1") || 1);
   const pageSize = Math.min(
-    20,
-    Math.max(1, Number(searchParams.get("pageSize") ?? "5") || 5),
+    100,
+    Math.max(1, Number(searchParams.get("pageSize") ?? "100") || 100),
   );
   const normalizedSearch = normalizeText(search);
   const normalizedPhoneSearch = normalizePhone(search);

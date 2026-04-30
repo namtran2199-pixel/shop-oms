@@ -41,6 +41,7 @@ type MergeCandidate = {
 };
 
 const SHIPPING_METHOD_OPTIONS = ["Bưu điện", "Nội thành", "Qua lấy"] as const;
+const ORDERS_PAGE_SIZE = 100;
 
 export function OrdersClient() {
   const router = useRouter();
@@ -54,7 +55,7 @@ export function OrdersClient() {
   const [meta, setMeta] = useState({
     total: 0,
     page: 1,
-    pageSize: 10,
+    pageSize: ORDERS_PAGE_SIZE,
     totalPages: 1,
   });
   const [isLoading, setIsLoading] = useState(true);
@@ -102,7 +103,7 @@ export function OrdersClient() {
     if (status !== "Tất cả") params.set("status", status);
     if (shippingMethod !== "Tất cả") params.set("shippingMethod", shippingMethod);
     params.set("page", String(page));
-    params.set("pageSize", "20");
+    params.set("pageSize", String(ORDERS_PAGE_SIZE));
     return params.toString();
   }, [page, search, shippingMethod, status]);
 
