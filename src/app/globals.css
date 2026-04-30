@@ -314,32 +314,32 @@ textarea:disabled {
   }
 
   body[data-print-device="ios"] .print-receipt[data-paper-size="LABEL_4X6"] .print-receipt-content {
-    min-height: 285mm;
-    padding: 4mm 0;
+    min-height: 287mm;
+    padding: 2mm 0;
   }
 
   body[data-print-device="ios"] .print-receipt[data-paper-size="LABEL_4X6"] .print-receipt-label {
-    --receipt-width: 150mm;
-    --receipt-height: 236mm;
-    --receipt-padding-x: 7mm;
-    --receipt-padding-top: 7mm;
-    --receipt-padding-bottom: 8mm;
-    --receipt-title-size: 24px;
-    --receipt-body-size: 18px;
-    --receipt-meta-size: 18px;
-    --receipt-qr-size: 34mm;
-    --receipt-summary-size: 18px;
-    --receipt-summary-value-width: 34mm;
-    --receipt-total-size: 30px;
+    --receipt-width: 166mm;
+    --receipt-height: 254mm;
+    --receipt-padding-x: 8mm;
+    --receipt-padding-top: 8mm;
+    --receipt-padding-bottom: 9mm;
+    --receipt-title-size: 27px;
+    --receipt-body-size: 20px;
+    --receipt-meta-size: 20px;
+    --receipt-qr-size: 38mm;
+    --receipt-summary-size: 20px;
+    --receipt-summary-value-width: 38mm;
+    --receipt-total-size: 34px;
     --receipt-total-gap: 3mm;
     --receipt-total-margin-top: 4px;
     --receipt-total-margin-bottom: 6px;
-    --receipt-qty-width: 84px;
-    --receipt-amount-width: 104px;
+    --receipt-qty-width: 94px;
+    --receipt-amount-width: 118px;
   }
 
   body[data-print-device="ios"] .print-receipt[data-paper-size="LABEL_4X6"] .receipt-top {
-    gap: 8mm;
+    gap: 6mm;
   }
 
   .print-receipt[data-paper-size="K80"] {
