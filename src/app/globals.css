@@ -139,7 +139,7 @@ textarea:disabled {
   }
 
   @page receipt-4x6 {
-    size: 100mm 150mm;
+    size: 95mm 150mm;
     margin: 0;
   }
 
@@ -215,18 +215,18 @@ textarea:disabled {
     --receipt-padding-x: 9mm;
     --receipt-padding-top: 9mm;
     --receipt-padding-bottom: 10mm;
-    --receipt-title-size: 27px;
-    --receipt-body-size: 18px;
-    --receipt-meta-size: 18px;
-    --receipt-qr-size: 42mm;
-    --receipt-summary-size: 18px;
-    --receipt-summary-value-width: 32mm;
-    --receipt-total-size: 34px;
+    --receipt-title-size: 28px;
+    --receipt-body-size: 23px;
+    --receipt-meta-size: 23px;
+    --receipt-qr-size: 46mm;
+    --receipt-summary-size: 23px;
+    --receipt-summary-value-width: 42mm;
+    --receipt-total-size: 44px;
     --receipt-total-gap: 3mm;
     --receipt-total-margin-top: 8px;
     --receipt-total-margin-bottom: 10px;
-    --receipt-qty-width: 88px;
-    --receipt-amount-width: 104px;
+    --receipt-qty-width: 110px;
+    --receipt-amount-width: 136px;
     box-sizing: border-box;
     width: var(--receipt-width);
     min-height: var(--receipt-height);
@@ -268,6 +268,45 @@ textarea:disabled {
     page: receipt-a4;
   }
 
+  .print-receipt[data-paper-size="LABEL_4X6"] {
+    width: 95mm;
+    max-width: 95mm;
+    page: receipt-4x6;
+  }
+
+  .print-receipt[data-paper-size="LABEL_4X6"] .print-receipt-content {
+    min-height: 150mm;
+    padding: 2.5mm 0;
+  }
+
+  .print-receipt[data-paper-size="LABEL_4X6"] .print-receipt-label {
+    --receipt-width: 91mm;
+    --receipt-height: 141mm;
+    --receipt-padding-x: 3.5mm;
+    --receipt-padding-top: 4.5mm;
+    --receipt-padding-bottom: 5.5mm;
+    --receipt-title-size: 14px;
+    --receipt-body-size: 12.5px;
+    --receipt-meta-size: 12px;
+    --receipt-qr-size: 20mm;
+    --receipt-summary-size: 12px;
+    --receipt-summary-value-width: 24mm;
+    --receipt-total-size: 18px;
+    --receipt-total-gap: 2mm;
+    --receipt-total-margin-top: 2px;
+    --receipt-total-margin-bottom: 4px;
+    --receipt-qty-width: 44px;
+    --receipt-amount-width: 64px;
+  }
+
+  .print-receipt[data-paper-size="LABEL_4X6"] .receipt-top {
+    gap: 3mm;
+  }
+
+  .print-receipt[data-paper-size="LABEL_4X6"] h1 {
+    white-space: nowrap;
+  }
+
   .print-receipt[data-paper-size="K80"] {
     --receipt-width: 80mm;
     --receipt-padding-x: 5mm;
@@ -288,7 +327,7 @@ textarea:disabled {
   }
 
   .receipt-date {
-    margin: 0 0 10px;
+    margin: 0 0 4px;
     text-align: left;
     font-size: var(--receipt-meta-size);
   }
@@ -298,7 +337,7 @@ textarea:disabled {
     grid-template-columns: minmax(0, 1fr) var(--receipt-qr-size);
     align-items: start;
     gap: 12mm;
-    margin-bottom: 8px;
+    margin-bottom: 2px;
     break-inside: avoid;
   }
 
@@ -313,12 +352,24 @@ textarea:disabled {
   }
 
   .receipt-customer {
-    margin-bottom: 16px;
+    margin-bottom: 0;
     font-size: var(--receipt-meta-size);
+    line-height: 1.15;
   }
 
   .receipt-customer p {
-    margin: 0 0 4px;
+    margin: 0 0 1px;
+  }
+
+  .receipt-customer-address {
+    display: block;
+    width: 100%;
+    max-width: none;
+    margin: 1px 0 3px;
+    padding-right: 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    line-height: 1.15;
   }
 
   .receipt-line {
@@ -326,7 +377,7 @@ textarea:disabled {
   }
 
   .receipt-dashed {
-    margin-top: 10px;
+    margin-top: 1px;
     border-top: 1px dashed #000000;
   }
 
@@ -358,16 +409,16 @@ textarea:disabled {
   }
 
   .receipt-items {
-    padding-top: 8px;
+    padding-top: 4px;
   }
 
   .receipt-item {
     break-inside: avoid;
-    margin-bottom: 12px;
+    margin-bottom: 2px;
   }
 
   .receipt-item-name {
-    margin: 0 0 4px;
+    margin: 0 0 2px;
     font-size: var(--receipt-meta-size);
   }
 
@@ -376,7 +427,7 @@ textarea:disabled {
   }
 
   .receipt-summary {
-    margin-top: 8px;
+    margin-top: 4px;
     width: 100%;
     font-size: var(--receipt-summary-size);
     break-inside: avoid;
@@ -386,7 +437,7 @@ textarea:disabled {
     display: grid;
     grid-template-columns: minmax(0, 1fr) var(--receipt-summary-value-width);
     gap: 8px;
-    margin: 0 0 6px;
+    margin: 0 0 2px;
   }
 
   .receipt-summary span {

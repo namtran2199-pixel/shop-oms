@@ -818,7 +818,7 @@ export function PrintableReceipt({ order }: { order: OrderDetail }) {
   return (
     <section
       className="print-receipt"
-      data-paper-size="A4"
+      data-paper-size="LABEL_4X6"
       aria-hidden="true"
     >
       <div className="print-receipt-content">
@@ -827,7 +827,20 @@ export function PrintableReceipt({ order }: { order: OrderDetail }) {
             <div className="receipt-store">
               <h1>{order.store.name}</h1>
               <p className="receipt-date">{order.receiptLongDateLabel}</p>
-              <p className="receipt-qr-label">Quét mã chuyển khoản:</p>
+
+              <div className="receipt-customer">
+                <p>
+                  <strong>Khách hàng:</strong> {order.customer.name}
+                </p>
+                <p>
+                  <strong>Sđt:</strong> {order.customer.phone}
+                </p>
+                {order.shippingMethod !== "Chưa chọn" ? (
+                  <p>
+                    <strong>Loại giao:</strong> {order.shippingMethod}
+                  </p>
+                ) : null}
+              </div>
             </div>
 
             <div className="receipt-qr">
@@ -846,24 +859,11 @@ export function PrintableReceipt({ order }: { order: OrderDetail }) {
             </div>
           </div>
 
-          <div className="receipt-customer">
-            <p>
-              <strong>Khách hàng:</strong> {order.customer.name}
+          {order.shippingAddress !== "Chưa có địa chỉ" ? (
+            <p className="receipt-customer-address">
+              <strong>Địa chỉ:</strong> {order.shippingAddress}
             </p>
-            <p>
-              <strong>Sđt:</strong> {order.customer.phone}
-            </p>
-            {order.shippingAddress !== "Chưa có địa chỉ" ? (
-              <p>
-                <strong>Địa chỉ:</strong> {order.shippingAddress}
-              </p>
-            ) : null}
-            {order.shippingMethod !== "Chưa chọn" ? (
-              <p>
-                <strong>Loại giao:</strong> {order.shippingMethod}
-              </p>
-            ) : null}
-          </div>
+          ) : null}
 
           <div className="receipt-line" />
           <div className="receipt-row receipt-head">
