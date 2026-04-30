@@ -200,33 +200,33 @@ textarea:disabled {
   .print-receipt-content {
     box-sizing: border-box;
     width: 100%;
-    min-height: 0;
+    min-height: 283mm;
     margin: 0 auto;
-    padding: 8mm 0 6mm;
+    padding: 4mm 0;
     overflow: hidden;
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     justify-content: center;
   }
 
   .print-receipt-label {
-    --receipt-width: 145mm;
-    --receipt-height: 229mm;
-    --receipt-padding-x: 8mm;
-    --receipt-padding-top: 8mm;
-    --receipt-padding-bottom: 9mm;
-    --receipt-title-size: 24px;
-    --receipt-body-size: 16px;
-    --receipt-meta-size: 16px;
-    --receipt-qr-size: 36mm;
-    --receipt-summary-size: 16px;
-    --receipt-summary-value-width: 28mm;
-    --receipt-total-size: 30px;
+    --receipt-width: 158mm;
+    --receipt-height: 244mm;
+    --receipt-padding-x: 9mm;
+    --receipt-padding-top: 9mm;
+    --receipt-padding-bottom: 10mm;
+    --receipt-title-size: 26px;
+    --receipt-body-size: 17px;
+    --receipt-meta-size: 17px;
+    --receipt-qr-size: 40mm;
+    --receipt-summary-size: 17px;
+    --receipt-summary-value-width: 30mm;
+    --receipt-total-size: 32px;
     --receipt-total-gap: 3mm;
     --receipt-total-margin-top: 8px;
     --receipt-total-margin-bottom: 10px;
-    --receipt-qty-width: 74px;
-    --receipt-amount-width: 90px;
+    --receipt-qty-width: 82px;
+    --receipt-amount-width: 98px;
     box-sizing: border-box;
     width: var(--receipt-width);
     min-height: var(--receipt-height);
