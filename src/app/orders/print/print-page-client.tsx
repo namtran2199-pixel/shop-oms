@@ -5,6 +5,14 @@ import { PrintableReceipt, waitForPrintableReceiptAssets, type OrderDetail } fro
 
 export function PrintOrdersClient({ orders }: { orders: OrderDetail[] }) {
   useEffect(() => {
+    const isIOS =
+      /iPad|iPhone|iPod/.test(window.navigator.userAgent) ||
+      (window.navigator.platform === "MacIntel" && window.navigator.maxTouchPoints > 1);
+
+    if (isIOS) {
+      document.body.dataset.printDevice = "ios";
+    }
+
     if (orders.length === 0) return;
 
     const timer = window.setTimeout(() => {
@@ -15,6 +23,9 @@ export function PrintOrdersClient({ orders }: { orders: OrderDetail[] }) {
 
     return () => {
       window.clearTimeout(timer);
+      if (document.body.dataset.printDevice === "ios") {
+        delete document.body.dataset.printDevice;
+      }
     };
   }, [orders]);
 
